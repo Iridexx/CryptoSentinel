@@ -49,12 +49,9 @@ jobs:
           yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Permessi Gradle
-        run: chmod +x android/gradlew
-
       - name: Build APK debug
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: bash gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
