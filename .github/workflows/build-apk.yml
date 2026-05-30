@@ -5,20 +5,14 @@ on:
     branches:
       - claude/crypto-price-monitor-app-RpMFm
       - claude/gradlew-missing-build-pYXQT
+      - main
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
-      pages: write
-      id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
 
     steps:
       - name: Checkout
@@ -66,10 +60,34 @@ jobs:
             --latest \
             CryptoWatch-debug.apk
 
-      - name: Prepara cartella per Pages
-        run: |
-          mkdir -p pages-dist
-          cp CryptoWatch-debug.apk pages-dist/
+      - name: Upload APK come artefatto CI
+        uses: actions/upload-artifact@v6
+        with:
+          name: CryptoWatch-debug.apk
+          path: CryptoWatch-debug.apk
+          retention-days: 30
+
+  deploy-pages:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Scarica APK dall'artefatto
+        uses: actions/download-artifact@v4
+        with:
+          name: CryptoWatch-debug.apk
+
+      - name: Prepara cartella Pages
+        run: mkdir -p pages-dist && cp CryptoWatch-debug.apk pages-dist/
 
       - name: Upload artefatto Pages
         uses: actions/upload-pages-artifact@v3
@@ -79,10 +97,3 @@ jobs:
       - name: Deploy su GitHub Pages
         id: deploy
         uses: actions/deploy-pages@v4
-
-      - name: Upload APK come artefatto CI
-        uses: actions/upload-artifact@v6
-        with:
-          name: CryptoWatch-debug.apk
-          path: CryptoWatch-debug.apk
-          retention-days: 30
