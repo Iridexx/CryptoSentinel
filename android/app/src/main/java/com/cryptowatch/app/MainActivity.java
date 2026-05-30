@@ -27,10 +27,10 @@ public class MainActivity extends BridgeActivity {
             long last = prefs.getLong(KEY_VER, -1);
 
             if (current != last) {
-                // Cache WebView HTTP (vecchio index.html con hash JS obsoleti)
+                // Solo cache HTTP — localStorage/IndexedDB (token, allarmi, preferiti) restano intatti
                 deleteDir(new File(getCacheDir(), "WebView"));
-                // Cache Chromium su Android più recenti
-                deleteDir(new File(getDataDir(), "app_webview"));
+                deleteDir(new File(getDataDir(), "app_webview/Default/Cache"));
+                deleteDir(new File(getDataDir(), "app_webview/Default/Code Cache"));
                 prefs.edit().putLong(KEY_VER, current).apply();
             }
         } catch (Exception ignored) {}
