@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Coin, PriceAlert } from '../types';
 import { sendAlertNotification } from '../utils/notifications';
 import { playAlertBeep } from '../utils/audio';
+import { syncAlertsToNative } from '../utils/update';
 
 const STORAGE_KEY = 'cryptowatch_alerts';
 
@@ -19,6 +20,7 @@ function saveAlerts(alerts: PriceAlert[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts));
   } catch { /* quota */ }
+  syncAlertsToNative(alerts);
 }
 
 export function useAlerts(coins: Coin[]) {

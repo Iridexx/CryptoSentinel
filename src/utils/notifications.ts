@@ -17,6 +17,7 @@ export async function initNotifications(): Promise<void> {
     importance: 5,
     vibration: true,
     sound: 'default',
+    visibility: 1,
   });
 }
 
@@ -57,7 +58,7 @@ export async function sendAlertNotification(params: {
           body: `Prezzo ${params.direction === 'above' ? 'sopra' : 'sotto'} $${params.threshold.toLocaleString()} · Attuale: $${params.currentPrice.toLocaleString()}`,
           sound: 'default',
           smallIcon: 'ic_launcher',
-          schedule: { at: new Date(Date.now() + 100) },
+          autoCancel: true,
         }],
       });
     } catch {

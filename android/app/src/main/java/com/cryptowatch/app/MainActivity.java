@@ -13,9 +13,10 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AppSettingsPlugin.class);
-        // Pulisce la cache WebView prima che carichi i contenuti, solo se APK aggiornato
         clearWebCacheOnUpdate();
         super.onCreate(savedInstanceState);
+        // Avvia il controllo prezzi in background (ogni 15 min, solo con rete)
+        PriceCheckWorker.schedule(this);
     }
 
     private void clearWebCacheOnUpdate() {

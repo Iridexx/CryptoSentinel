@@ -88,6 +88,14 @@ public class AppSettingsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void syncAlerts(PluginCall call) {
+        String json = call.getString("json", "[]");
+        getContext().getSharedPreferences("cryptowatch_prefs", android.content.Context.MODE_PRIVATE)
+            .edit().putString("alerts_json", json).apply();
+        call.resolve();
+    }
+
+    @PluginMethod
     public void openWithChooser(PluginCall call) {
         String url = call.getString("url");
         if (url == null) { call.reject("url mancante"); return; }
