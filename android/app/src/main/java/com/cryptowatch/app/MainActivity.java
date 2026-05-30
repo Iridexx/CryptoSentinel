@@ -2,6 +2,7 @@ package com.cryptowatch.app;
 
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
@@ -12,6 +13,8 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        getWindow().getDecorView().setBackgroundColor(Color.parseColor("#0a0e1a"));
+        getWindow().setStatusBarColor(Color.parseColor("#0a0e1a"));
         registerPlugin(AppSettingsPlugin.class);
         clearHttpCacheOnUpdate();
         super.onCreate(savedInstanceState);
