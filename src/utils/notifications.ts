@@ -2,6 +2,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 
 interface AppSettingsPlugin {
   openNotifications(): Promise<void>;
+  openWithChooser(options: { url: string; title?: string }): Promise<void>;
 }
 
 const AppSettings = registerPlugin<AppSettingsPlugin>('AppSettings');

@@ -1,4 +1,6 @@
 const RELEASES_API = 'https://api.github.com/repos/iridexx/test_app_cloude/releases/latest';
+// L'APK è pubblicato su GitHub Pages, nessun login richiesto
+export const APK_PAGES_URL = 'https://iridexx.github.io/test_app_cloude/CryptoWatch-debug.apk';
 
 export interface UpdateResult {
   available: boolean;
@@ -34,6 +36,17 @@ export async function checkForUpdates(currentBuildDate: string): Promise<UpdateR
   };
 }
 
-export function downloadAndInstall(url: string): void {
-  window.open(url, '_system');
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+interface AppSettingsPlugin {
+  openWithChooser(options: { url: string; title?: string }): Promise<void>;
+}
+const AppSettings = registerPlugin<AppSettingsPlugin>('AppSettings');
+
+export async function downloadAndInstall(url: string): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    await AppSettings.openWithChooser({ url, title: 'Scarica APK con' });
+  } else {
+    window.open(url, '_blank');
+  }
 }

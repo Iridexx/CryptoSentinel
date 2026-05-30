@@ -1,6 +1,6 @@
 import { useState, type FC } from 'react';
 import { getNotificationPermission, openNotificationSettings } from '../utils/notifications';
-import { checkForUpdates, downloadAndInstall, type UpdateResult } from '../utils/update';
+import { checkForUpdates, downloadAndInstall, APK_PAGES_URL, type UpdateResult } from '../utils/update';
 
 const INTERVALS = [
   { label: '30 sec', ms: 30_000 },
@@ -106,9 +106,9 @@ const SettingsTab: FC<Props> = ({
             <p className="text-xs text-accent-red">Impossibile verificare. Controlla la connessione.</p>
           )}
 
-          {updateState === 'available' && updateInfo?.downloadUrl ? (
+          {updateState === 'available' ? (
             <button
-              onClick={() => downloadAndInstall(updateInfo.downloadUrl!)}
+              onClick={() => downloadAndInstall(APK_PAGES_URL)}
               className="w-full py-2.5 bg-accent-blue text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity"
             >
               Scarica e installa
