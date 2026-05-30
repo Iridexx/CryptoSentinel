@@ -1,9 +1,9 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { Coin } from './types';
 import { useCryptoData } from './hooks/useCryptoData';
 import { useFavorites } from './hooks/useFavorites';
 import { useAlerts } from './hooks/useAlerts';
-import { getNotificationPermission } from './utils/notifications';
+import { getNotificationPermission, initNotifications } from './utils/notifications';
 import Navbar, { type Tab } from './components/Navbar';
 import CoinCard from './components/CoinCard';
 import AlertModal from './components/AlertModal';
@@ -17,7 +17,12 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [search, setSearch] = useState('');
   const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
-  const [notifPerm, setNotifPerm] = useState<NotificationPermission>(getNotificationPermission);
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
+
+  useEffect(() => {
+    initNotifications();
+    getNotificationPermission().then(setNotifPerm);
+  }, []);
   const [refreshInterval, setRefreshInterval] = useState<number>(() => {
     return parseInt(localStorage.getItem(INTERVAL_KEY) || '30000', 10);
   });
@@ -192,6 +197,8 @@ export default function App() {
               alertsCount={alerts.length}
               onClearFavorites={clearFavorites}
               onClearAlerts={clearAlerts}
+              notifPerm={notifPerm}
+              onPermissionChange={setNotifPerm}
             />
           )}
         </div>

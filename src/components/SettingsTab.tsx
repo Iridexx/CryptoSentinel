@@ -1,5 +1,5 @@
 import { useState, type FC } from 'react';
-import { getNotificationPermission, openNotificationSettings } from '../utils/notifications';
+import { openNotificationSettings } from '../utils/notifications';
 import { checkForUpdates, downloadAndInstall, getDevBuildInfo, mergeToMain, APK_PAGES_URL, type UpdateResult, type DevBuildInfo } from '../utils/update';
 
 const INTERVALS = [
@@ -21,6 +21,8 @@ interface Props {
   alertsCount: number;
   onClearFavorites: () => void;
   onClearAlerts: () => void;
+  notifPerm: NotificationPermission;
+  onPermissionChange: (p: NotificationPermission) => void;
 }
 
 const SettingsTab: FC<Props> = ({
@@ -30,8 +32,8 @@ const SettingsTab: FC<Props> = ({
   alertsCount,
   onClearFavorites,
   onClearAlerts,
+  notifPerm,
 }) => {
-  const notifPerm = getNotificationPermission();
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [updateInfo, setUpdateInfo] = useState<UpdateResult | null>(null);
   const [devState, setDevState] = useState<DevState>('locked');
