@@ -22,6 +22,14 @@ export default function App() {
   useEffect(() => {
     initNotifications();
     getNotificationPermission().then(setNotifPerm);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        getNotificationPermission().then(setNotifPerm);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
   const [refreshInterval, setRefreshInterval] = useState<number>(() => {
     return parseInt(localStorage.getItem(INTERVAL_KEY) || '30000', 10);
