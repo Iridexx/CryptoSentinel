@@ -81,10 +81,13 @@ const SettingsTab: FC<Props> = ({
           </div>
 
           {updateState === 'available' && updateInfo && (
-            <div className="bg-accent-blue/10 border border-accent-blue/20 rounded-lg px-3 py-2">
+            <div className="bg-accent-blue/10 border border-accent-blue/20 rounded-lg px-3 py-2 flex items-center justify-between">
               <p className="text-xs text-gray-300">
-                Nuovo aggiornamento del <span className="text-white font-medium">{updateInfo.releaseDate}</span>
+                Aggiornamento del <span className="text-white font-medium">{updateInfo.releaseDate}</span>
               </p>
+              {updateInfo.buildNumber && (
+                <span className="text-xs text-gray-400 font-mono ml-2">#{updateInfo.buildNumber}</span>
+              )}
             </div>
           )}
 
