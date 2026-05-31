@@ -19,6 +19,8 @@ import SettingsTab from './components/SettingsTab';
 
 const INTERVAL_KEY = 'cryptosentinel_refresh_interval';
 
+type SortBy = 'rank' | 'change' | 'volume' | 'price';
+
 export default function App() {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [search, setSearch] = useState('');
@@ -30,6 +32,8 @@ export default function App() {
   const [page, setPage] = useState(1);
   const [availableUpdate, setAvailableUpdate] = useState<UpdateResult | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState(false);
+  const [sortBy, setSortBy] = useState<SortBy>('rank');
+  const [sortDesc, setSortDesc] = useState(true);
   const lastUpdateCheckRef = useRef<number>(0);
 
   const runUpdateCheck = useCallback(async () => {
@@ -88,9 +92,34 @@ export default function App() {
     setPage(1);
   }, []);
 
+  const handleSort = useCallback((key: SortBy) => {
+    setSortBy((prev) => {
+      if (prev === key) { setSortDesc((d) => !d); return key; }
+      setSortDesc(true);
+      return key;
+    });
+  }, []);
+
   const isSearching = search.trim().length > 0;
-  const displayCoins = isSearching ? searchResults : coins;
+  const rawDisplayCoins = isSearching ? searchResults : coins;
   const displayLoading = isSearching ? searching : loading;
+
+  const displayCoins = useMemo(() => {
+    const arr = [...rawDisplayCoins];
+    if (sortBy === 'rank') {
+      arr.sort((a, b) => {
+        const ar = a.market_cap_rank ?? 9999;
+        const br = b.market_cap_rank ?? 9999;
+        return sortDesc ? ar - br : br - ar;
+      });
+    } else {
+      const key = sortBy === 'change' ? 'price_change_percentage_24h'
+        : sortBy === 'volume' ? 'total_volume'
+        : 'current_price';
+      arr.sort((a, b) => sortDesc ? b[key] - a[key] : a[key] - b[key]);
+    }
+    return arr;
+  }, [rawDisplayCoins, sortBy, sortDesc]);
 
   const favoriteCoins = useMemo(
     () => coins.filter((c) => isFavorite(c.id)),
@@ -192,38 +221,59 @@ export default function App() {
           {tab === 'dashboard' && (
             <div>
               {!isSearching && (
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex gap-1">
-                    {([50, 100] as const).map((n) => (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex gap-1">
+                      {([50, 100] as const).map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => handlePerPageChange(n)}
+                          className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                            perPage === n ? 'bg-accent-blue text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
                       <button
-                        key={n}
-                        onClick={() => handlePerPageChange(n)}
-                        className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                          perPage === n ? 'bg-accent-blue text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="px-2.5 py-1 rounded-lg bg-dark-700 text-gray-400 hover:text-white disabled:opacity-30 text-sm transition-colors"
+                      >
+                        ←
+                      </button>
+                      <span className="text-xs text-gray-500 tabular-nums">Pag. {page}</span>
+                      <button
+                        onClick={() => setPage((p) => p + 1)}
+                        disabled={coins.length < perPage}
+                        className="px-2.5 py-1 rounded-lg bg-dark-700 text-gray-400 hover:text-white disabled:opacity-30 text-sm transition-colors"
+                      >
+                        →
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 mb-3 overflow-x-auto pb-0.5 scrollbar-none">
+                    {([
+                      { key: 'rank' as SortBy, label: 'Rank' },
+                      { key: 'change' as SortBy, label: '24h %' },
+                      { key: 'volume' as SortBy, label: 'Volume' },
+                      { key: 'price' as SortBy, label: 'Prezzo' },
+                    ]).map(({ key, label }) => (
+                      <button
+                        key={key}
+                        onClick={() => handleSort(key)}
+                        className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                          sortBy === key ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30' : 'bg-dark-700 text-gray-400 hover:text-white border border-transparent'
                         }`}
                       >
-                        {n}
+                        {label}
+                        {sortBy === key && <span className="text-xs">{sortDesc ? '↓' : '↑'}</span>}
                       </button>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                      className="px-2.5 py-1 rounded-lg bg-dark-700 text-gray-400 hover:text-white disabled:opacity-30 text-sm transition-colors"
-                    >
-                      ←
-                    </button>
-                    <span className="text-xs text-gray-500 tabular-nums">Pag. {page}</span>
-                    <button
-                      onClick={() => setPage((p) => p + 1)}
-                      disabled={coins.length < perPage}
-                      className="px-2.5 py-1 rounded-lg bg-dark-700 text-gray-400 hover:text-white disabled:opacity-30 text-sm transition-colors"
-                    >
-                      →
-                    </button>
-                  </div>
-                </div>
+                </>
               )}
 
               {displayLoading ? (
