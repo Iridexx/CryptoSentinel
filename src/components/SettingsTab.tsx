@@ -10,23 +10,26 @@ const DONATION_OPTIONS = [
     label: 'Lightning Network',
     subtitle: 'Bitcoin istantaneo · zero commissioni',
     address: 'eifel@getalby.com',
+    appUri: 'lightning:eifel@getalby.com',
   },
   {
     icon: '₿',
     label: 'Bitcoin',
     subtitle: 'On-chain · Taproot',
     address: 'bc1pfzyjm5759qv0rjfsxld4jcejqv7elkuw6j9w2dxcsyrdf4vsw6yq6lexdg',
+    appUri: 'bitcoin:bc1pfzyjm5759qv0rjfsxld4jcejqv7elkuw6j9w2dxcsyrdf4vsw6yq6lexdg',
   },
   {
     icon: '💎',
     label: 'USDT / USDC',
     subtitle: 'EVM · Ethereum, Polygon, BSC, Arbitrum…',
     address: '0x80f8Fc375bCf1a7BC38394d6048e8364628Bd6C0',
+    appUri: null,
   },
 ] as const;
 
-const DonationRow: FC<{ icon: string; label: string; subtitle: string; address: string; last?: boolean }> = ({
-  icon, label, subtitle, address, last,
+const DonationRow: FC<{ icon: string; label: string; subtitle: string; address: string; appUri?: string | null; last?: boolean }> = ({
+  icon, label, subtitle, address, appUri, last,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -34,7 +37,12 @@ const DonationRow: FC<{ icon: string; label: string; subtitle: string; address: 
     ? `${address.slice(0, 10)}…${address.slice(-6)}`
     : address;
 
-  const handleCopy = async () => {
+  const handleOpen = () => {
+    if (appUri) window.open(appUri, '_system');
+  };
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
       await navigator.clipboard.writeText(address);
     } catch {
@@ -50,10 +58,20 @@ const DonationRow: FC<{ icon: string; label: string; subtitle: string; address: 
   };
 
   return (
-    <div className={`px-4 py-3 flex items-center gap-3 ${last ? 'rounded-b-xl' : ''}`}>
+    <div
+      className={`px-4 py-3 flex items-center gap-3 transition-colors ${last ? 'rounded-b-xl' : ''} ${appUri ? 'cursor-pointer hover:bg-dark-700 active:bg-dark-600' : ''}`}
+      onClick={appUri ? handleOpen : undefined}
+    >
       <span className="text-xl w-7 text-center flex-shrink-0">{icon}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-white font-medium">{label}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm text-white font-medium">{label}</p>
+          {appUri && (
+            <svg className="w-3 h-3 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          )}
+        </div>
         <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
         <p className="text-xs text-gray-600 font-mono mt-0.5 truncate">{truncated}</p>
       </div>
@@ -63,7 +81,7 @@ const DonationRow: FC<{ icon: string; label: string; subtitle: string; address: 
           copied ? 'bg-accent-green/20 text-accent-green' : 'bg-dark-700 text-gray-400 hover:text-white'
         }`}
       >
-        {copied ? '✓ Copiato' : 'Copia'}
+        {copied ? '✓' : 'Copia'}
       </button>
     </div>
   );
