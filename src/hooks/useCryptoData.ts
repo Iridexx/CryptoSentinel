@@ -3,8 +3,8 @@ import type { Coin } from '../types';
 
 const CACHE_KEY = 'cryptosentinel_coins_cache';
 
-function buildUrl(perPage: 15 | 50 | 100, page: number, currency: string): string {
-  return `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency}&order=market_cap_desc&per_page=${perPage}&page=${page}&sparkline=false&price_change_percentage=24h,7d`;
+function buildUrl(perPage: 50 | 100, page: number, currency: string): string {
+  return `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency}&order=market_cap_desc&per_page=${perPage}&page=${page}&sparkline=false&price_change_percentage=1h,24h,7d`;
 }
 
 function loadCachedCoins(): Coin[] {
@@ -17,7 +17,7 @@ function loadCachedCoins(): Coin[] {
   }
 }
 
-export function useCryptoData(intervalMs = 30_000, perPage: 15 | 50 | 100 = 50, page = 1, currency = 'usd') {
+export function useCryptoData(intervalMs = 30_000, perPage: 50 | 100 = 50, page = 1, currency = 'usd') {
   const [coins, setCoins] = useState<Coin[]>(() => page === 1 ? loadCachedCoins() : []);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

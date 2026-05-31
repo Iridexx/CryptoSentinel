@@ -27,6 +27,8 @@ function formatMarketCap(val: number, currency: Currency): string {
   return `${sym}${val.toLocaleString('it-IT')}`;
 }
 
+type TimeFrame = '1h' | '24h' | '7d';
+
 interface Props {
   coin: Coin;
   isFavorite: boolean;
@@ -34,12 +36,14 @@ interface Props {
   onAddAlert: (coin: Coin) => void;
   currency: Currency;
   showVolume?: boolean;
-  show7dChange?: boolean;
+  timeFrame?: TimeFrame;
 }
 
-const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, currency, showVolume, show7dChange }) => {
-  const change7d = coin.price_change_percentage_7d_in_currency;
-  const displayChange = (show7dChange && change7d != null) ? change7d : coin.price_change_percentage_24h;
+const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, currency, showVolume, timeFrame = '24h' }) => {
+  const displayChange =
+    timeFrame === '1h' ? (coin.price_change_percentage_1h_in_currency ?? coin.price_change_percentage_24h) :
+    timeFrame === '7d' ? (coin.price_change_percentage_7d_in_currency ?? coin.price_change_percentage_24h) :
+    coin.price_change_percentage_24h;
   const isPositive = displayChange >= 0;
   const sym = SYMBOL[currency];
 
@@ -66,7 +70,7 @@ const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, c
         <div className="font-bold text-sm text-white">{sym}{formatPrice(coin.current_price, currency)}</div>
         <div className={`text-xs font-medium mt-0.5 ${isPositive ? 'text-accent-green' : 'text-accent-red'}`}>
           {isPositive ? '▲' : '▼'} {Math.abs(displayChange).toFixed(2)}%
-          {show7dChange && change7d != null && <span className="text-gray-600 ml-0.5">7g</span>}
+          {timeFrame !== '24h' && <span className="text-gray-600 ml-0.5">{timeFrame === '1h' ? '1h' : '7g'}</span>}
         </div>
       </div>
 
