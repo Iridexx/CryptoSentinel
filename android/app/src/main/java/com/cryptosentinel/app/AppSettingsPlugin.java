@@ -107,6 +107,16 @@ public class AppSettingsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void getAlerts(PluginCall call) {
+        String json = getContext()
+            .getSharedPreferences("cryptosentinel_prefs", android.content.Context.MODE_PRIVATE)
+            .getString("alerts_json", "[]");
+        JSObject result = new JSObject();
+        result.put("json", json);
+        call.resolve(result);
+    }
+
+    @PluginMethod
     public void scheduleImmediateCheck(PluginCall call) {
         PriceCheckWorker.scheduleImmediate(getContext());
         call.resolve();

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Coin, PriceAlert, AlertDirection, AlertHistoryEntry } from '../types';
 import { sendAlertNotification } from '../utils/notifications';
 import { playAlertBeep } from '../utils/audio';
-import { syncAlertsToNative } from '../utils/update';
+import { syncAlertsToNative, getAlertsFromNative } from '../utils/update';
 
 const STORAGE_KEY = 'cryptosentinel_alerts';
 const HISTORY_KEY = 'cryptosentinel_alert_history';
@@ -81,6 +81,25 @@ export function useAlerts(coins: Coin[]) {
     });
   }, []);
 
+  // Al mount: legge lo stato triggered dal worker nativo e aggiorna React
+  useEffect(() => {
+    getAlertsFromNative().then(nativeJson => {
+      if (!nativeJson) return;
+      try {
+        const nativeAlerts = JSON.parse(nativeJson) as Array<{ id: string; triggered?: boolean }>;
+        const triggeredIds = new Set(nativeAlerts.filter(a => a.triggered).map(a => a.id));
+        if (triggeredIds.size === 0) return;
+        setAlerts(prev => {
+          const needsUpdate = prev.some(a => triggeredIds.has(a.id) && !a.triggered);
+          if (!needsUpdate) return prev;
+          const next = prev.map(a => triggeredIds.has(a.id) ? { ...a, triggered: true } : a);
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+          return next;
+        });
+      } catch {}
+    });
+  }, []);
+
   useEffect(() => {
     if (coins.length === 0) return;
 
@@ -120,33 +139,57 @@ export function useAlerts(coins: Coin[]) {
 
     if (toFire.length === 0) return;
 
-    setAlerts((prev) => {
-      const next = prev.map((a) => toTriggerIds.has(a.id) ? { ...a, triggered: true } : a);
-      saveAlerts(next);
-      return next;
-    });
+    // Controlla se il worker nativo ha già sparato per questi alert (evita doppioni)
+    let alive = true;
+    const fire = async () => {
+      const nativeJson = await getAlertsFromNative();
+      if (!alive) return;
 
-    const now = Date.now();
-    const newEntries: AlertHistoryEntry[] = toFire.map(({ alert, currentPrice }) => ({
-      id: `${now}-${alert.id}`,
-      coinId: alert.coinId,
-      coinName: alert.coinName,
-      coinSymbol: alert.coinSymbol,
-      coinImage: alert.coinImage,
-      direction: alert.direction,
-      threshold: alert.threshold,
-      triggeredPrice: currentPrice,
-      triggeredAt: now,
-    }));
+      const nativeTriggered = new Set<string>();
+      if (nativeJson) {
+        try {
+          (JSON.parse(nativeJson) as Array<{ id: string; triggered?: boolean }>)
+            .filter(a => a.triggered)
+            .forEach(a => nativeTriggered.add(a.id));
+        } catch {}
+      }
 
-    setHistory((prev) => {
-      const next = [...newEntries, ...prev].slice(0, MAX_HISTORY);
-      saveHistory(next);
-      return next;
-    });
+      // Segna tutti come triggered in React (anche quelli gestiti dal worker)
+      setAlerts((prev) => {
+        const next = prev.map((a) => toTriggerIds.has(a.id) ? { ...a, triggered: true } : a);
+        saveAlerts(next);
+        return next;
+      });
 
-    playAlertBeep();
-    toFire.forEach((params) => sendAlertNotification(params));
+      // Storico per tutti i crossing rilevati dal JS
+      const now = Date.now();
+      const newEntries: AlertHistoryEntry[] = toFire.map(({ alert, currentPrice }) => ({
+        id: `${now}-${alert.id}`,
+        coinId: alert.coinId,
+        coinName: alert.coinName,
+        coinSymbol: alert.coinSymbol,
+        coinImage: alert.coinImage,
+        direction: alert.direction,
+        threshold: alert.threshold,
+        triggeredPrice: currentPrice,
+        triggeredAt: now,
+      }));
+      setHistory((prev) => {
+        const next = [...newEntries, ...prev].slice(0, MAX_HISTORY);
+        saveHistory(next);
+        return next;
+      });
+
+      // Notifica solo per alert che il worker NON ha già gestito
+      const filtered = toFire.filter(({ alert }) => !nativeTriggered.has(alert.id));
+      if (filtered.length === 0) return;
+
+      playAlertBeep();
+      filtered.forEach((params) => sendAlertNotification(params));
+    };
+
+    fire();
+    return () => { alive = false; };
   }, [coins]);
 
   const editAlert = useCallback((id: string, threshold: number, direction: AlertDirection, percentChange?: number) => {
