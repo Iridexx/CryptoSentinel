@@ -20,6 +20,7 @@ import SettingsTab from './components/SettingsTab';
 const INTERVAL_KEY = 'cryptosentinel_refresh_interval';
 
 type SortBy = 'rank' | 'change' | '7d' | 'volume' | 'price';
+type TimeFrame = '1h' | '24h' | '7d';
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('dashboard');
@@ -28,7 +29,8 @@ export default function App() {
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
   const [batteryDismissed, setBatteryDismissed] = useState(isBatteryBannerDismissed);
   const [dlState, setDlState] = useState<'idle' | 'downloading' | 'done'>('idle');
-  const [perPage, setPerPage] = useState<15 | 50 | 100>(50);
+  const [perPage, setPerPage] = useState<50 | 100>(50);
+  const [timeFrame, setTimeFrame] = useState<TimeFrame>('24h');
   const [page, setPage] = useState(1);
   const [availableUpdate, setAvailableUpdate] = useState<UpdateResult | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState(false);
@@ -87,7 +89,7 @@ export default function App() {
     localStorage.setItem(INTERVAL_KEY, String(ms));
   }, []);
 
-  const handlePerPageChange = useCallback((n: 15 | 50 | 100) => {
+  const handlePerPageChange = useCallback((n: 50 | 100) => {
     setPerPage(n);
     setPage(1);
   }, []);
@@ -230,7 +232,7 @@ export default function App() {
                 <>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex gap-1">
-                      {([15, 50, 100] as const).map((n) => (
+                      {([50, 100] as const).map((n) => (
                         <button
                           key={n}
                           onClick={() => handlePerPageChange(n)}
@@ -259,6 +261,24 @@ export default function App() {
                         →
                       </button>
                     </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-gray-600 text-xs flex-shrink-0">Periodo:</span>
+                    {([
+                      { key: '1h' as TimeFrame, label: '1h' },
+                      { key: '24h' as TimeFrame, label: '24h' },
+                      { key: '7d' as TimeFrame, label: '7g' },
+                    ]).map(({ key, label }) => (
+                      <button
+                        key={key}
+                        onClick={() => setTimeFrame(key)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                          timeFrame === key ? 'bg-accent-blue text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                   <div className="flex gap-1.5 mb-3 overflow-x-auto pb-0.5 scrollbar-none">
                     {([
@@ -309,7 +329,7 @@ export default function App() {
                       onAddAlert={handleAddAlert}
                       currency={currency}
                       showVolume={sortBy === 'volume'}
-                      show7dChange={sortBy === '7d'}
+                      timeFrame={timeFrame}
                     />
                   ))}
                 </div>
