@@ -6,6 +6,7 @@ on:
       - claude/crypto-price-monitor-app-RpMFm
       - claude/gradlew-missing-build-pYXQT
       - claude/energy-saving-toggle-AsdD9
+      - claude/fix-001-muQ1X
       - Fix_001
       - main
       - release/**
