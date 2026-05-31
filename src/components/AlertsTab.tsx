@@ -6,7 +6,7 @@ interface Props {
   onRemove: (id: string) => void;
   onReset: (id: string) => void;
   coins: Coin[];
-  onEdit: (id: string, threshold: number, direction: AlertDirection) => void;
+  onEdit: (id: string, threshold: number, direction: AlertDirection, percentChange?: number) => void;
 }
 
 function formatPrice(price: number): string {
@@ -76,7 +76,7 @@ interface AlertRowProps {
   alert: PriceAlert;
   onRemove: (id: string) => void;
   onReset: (id: string) => void;
-  onEdit: (id: string, threshold: number, direction: AlertDirection) => void;
+  onEdit: (id: string, threshold: number, direction: AlertDirection, percentChange?: number) => void;
   coin?: Coin;
 }
 
@@ -107,7 +107,10 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin })
   };
 
   const handleSave = () => {
-    onEdit(alert.id, draftThreshold, draftDirection);
+    const newPct = coin
+      ? Math.abs((draftThreshold - coin.current_price) / coin.current_price * 100)
+      : undefined;
+    onEdit(alert.id, draftThreshold, draftDirection, newPct);
     setEditing(false);
   };
 

@@ -26,7 +26,6 @@ function saveAlerts(alerts: PriceAlert[]) {
 export function useAlerts(coins: Coin[]) {
   const [alerts, setAlerts] = useState<PriceAlert[]>(loadAlerts);
   const lastTriggeredRef = useRef<Set<string>>(new Set());
-  // Ref per accedere sempre agli alert più recenti senza dipendenze stale
   const alertsRef = useRef<PriceAlert[]>(alerts);
   alertsRef.current = alerts;
 
@@ -65,9 +64,6 @@ export function useAlerts(coins: Coin[]) {
   useEffect(() => {
     if (coins.length === 0) return;
 
-    // Calcola toFire PRIMA di setAlerts usando il ref (non la closure stale)
-    // Il problema precedente: toFire era popolato dentro l'updater di setAlerts
-    // che React esegue in modo asincrono — quando il controllo avveniva, toFire era vuoto
     type FireItem = { coinName: string; direction: 'above' | 'below'; threshold: number; currentPrice: number };
     const toFire: FireItem[] = [];
     const toTriggerIds = new Set<string>();
@@ -100,9 +96,9 @@ export function useAlerts(coins: Coin[]) {
     toFire.forEach((params) => sendAlertNotification(params));
   }, [coins]);
 
-  const editAlert = useCallback((id: string, threshold: number, direction: AlertDirection) => {
+  const editAlert = useCallback((id: string, threshold: number, direction: AlertDirection, percentChange?: number) => {
     setAlerts((prev) => {
-      const next = prev.map((a) => a.id === id ? { ...a, threshold, direction, triggered: false } : a);
+      const next = prev.map((a) => a.id === id ? { ...a, threshold, direction, percentChange, triggered: false } : a);
       saveAlerts(next);
       return next;
     });
@@ -116,8 +112,6 @@ export function useAlerts(coins: Coin[]) {
     lastTriggeredRef.current.clear();
   }, []);
 
-  // Sync su mount: garantisce che SharedPreferences sia sempre aggiornato
-  // (es. dopo reinstallazione, reboot, o cancellazione dati)
   useEffect(() => {
     const initial = loadAlerts();
     if (initial.length > 0) syncAlertsToNative(initial);
