@@ -76,7 +76,7 @@ export default function App() {
   const { coins, loading, error, lastUpdated, refresh } = useCryptoData(refreshInterval, perPage, page, currency);
   const { results: searchResults, searching } = useSearch(search, currency);
   const { favorites, toggle: toggleFavorite, isFavorite, clear: clearFavorites } = useFavorites();
-  const { alerts, addAlert, removeAlert, resetAlert, editAlert, clearAlerts } = useAlerts(coins);
+  const { alerts, addAlert, removeAlert, resetAlert, editAlert, clearAlerts, history, clearHistory } = useAlerts(coins);
 
   const handleIntervalChange = useCallback((ms: number) => {
     setRefreshInterval(ms);
@@ -286,7 +286,7 @@ export default function App() {
           )}
 
           {tab === 'alerts' && (
-            <AlertsTab alerts={alerts} onRemove={removeAlert} onReset={resetAlert} coins={coins} onEdit={editAlert} />
+            <AlertsTab alerts={alerts} onRemove={removeAlert} onReset={resetAlert} coins={coins} onEdit={editAlert} history={history} onClearHistory={clearHistory} />
           )}
 
           {tab === 'settings' && (

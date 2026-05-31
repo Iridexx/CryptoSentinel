@@ -1,5 +1,5 @@
 import { useState, type FC } from 'react';
-import type { PriceAlert, Coin, AlertDirection } from '../types';
+import type { PriceAlert, Coin, AlertDirection, AlertHistoryEntry } from '../types';
 
 interface Props {
   alerts: PriceAlert[];
@@ -7,6 +7,8 @@ interface Props {
   onReset: (id: string) => void;
   coins: Coin[];
   onEdit: (id: string, threshold: number, direction: AlertDirection, percentChange?: number) => void;
+  history: AlertHistoryEntry[];
+  onClearHistory: () => void;
 }
 
 function formatPrice(price: number): string {
@@ -15,8 +17,13 @@ function formatPrice(price: number): string {
   return price.toFixed(6);
 }
 
-const AlertsTab: FC<Props> = ({ alerts, onRemove, onReset, coins, onEdit }) => {
-  if (alerts.length === 0) {
+const AlertsTab: FC<Props> = ({ alerts, onRemove, onReset, coins, onEdit, history, onClearHistory }) => {
+  const [showHistory, setShowHistory] = useState(false);
+
+  const active = alerts.filter((a) => !a.triggered);
+  const triggered = alerts.filter((a) => a.triggered);
+
+  if (alerts.length === 0 && history.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center px-8">
         <div className="text-5xl mb-4">🔔</div>
@@ -27,9 +34,6 @@ const AlertsTab: FC<Props> = ({ alerts, onRemove, onReset, coins, onEdit }) => {
       </div>
     );
   }
-
-  const active = alerts.filter((a) => !a.triggered);
-  const triggered = alerts.filter((a) => a.triggered);
 
   return (
     <div className="space-y-2">
@@ -66,6 +70,36 @@ const AlertsTab: FC<Props> = ({ alerts, onRemove, onReset, coins, onEdit }) => {
               coin={coins.find((c) => c.id === alert.coinId)}
             />
           ))}
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={() => setShowHistory((v) => !v)}
+            className="flex items-center justify-between w-full px-1 mb-2 group"
+          >
+            <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wide group-hover:text-gray-300 transition-colors">
+              📋 Storico ({history.length})
+            </h3>
+            <span className="text-gray-600 text-xs">{showHistory ? '▲' : '▼'}</span>
+          </button>
+
+          {showHistory && (
+            <>
+              <div className="space-y-1.5">
+                {history.map((entry) => (
+                  <HistoryRow key={entry.id} entry={entry} />
+                ))}
+              </div>
+              <button
+                onClick={onClearHistory}
+                className="mt-3 w-full py-2 text-xs text-accent-red/70 hover:text-accent-red bg-accent-red/5 hover:bg-accent-red/10 rounded-xl transition-colors"
+              >
+                Cancella storico
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -237,6 +271,38 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin })
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const HistoryRow: FC<{ entry: AlertHistoryEntry }> = ({ entry }) => {
+  const isAbove = entry.direction === 'above';
+  const priceDiff = ((entry.triggeredPrice - entry.threshold) / entry.threshold) * 100;
+  const date = new Date(entry.triggeredAt);
+  const dateStr = date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+  const timeStr = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div className="flex items-center gap-2.5 bg-dark-800/60 rounded-xl px-3 py-2.5 border border-dark-700">
+      <img src={entry.coinImage} alt={entry.coinName} className="w-7 h-7 rounded-full flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-white text-xs font-semibold">{entry.coinName}</span>
+          <span className={`text-xs font-bold ${isAbove ? 'text-accent-green' : 'text-accent-red'}`}>
+            {isAbove ? '▲' : '▼'} ${formatPrice(entry.triggeredPrice)}
+          </span>
+        </div>
+        <div className="text-xs text-gray-500 mt-0.5">
+          Soglia ${formatPrice(entry.threshold)} ·{' '}
+          <span className={priceDiff >= 0 ? 'text-accent-green/70' : 'text-accent-red/70'}>
+            {priceDiff >= 0 ? '+' : ''}{priceDiff.toFixed(1)}%
+          </span>
+        </div>
+      </div>
+      <div className="text-right flex-shrink-0">
+        <div className="text-xs text-gray-500">{dateStr}</div>
+        <div className="text-xs text-gray-600">{timeStr}</div>
+      </div>
     </div>
   );
 };
