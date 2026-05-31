@@ -49,9 +49,9 @@ const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, c
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1">
           <span className="font-semibold text-sm text-white truncate">{coin.name}</span>
-          <span className="text-xs text-gray-500 uppercase flex-shrink-0">{coin.symbol}</span>
+          <span className="text-xs text-gray-400 uppercase flex-shrink-0">{coin.symbol}</span>
         </div>
-        <div className="text-xs text-gray-500 mt-0.5">
+        <div className="text-xs text-gray-400 mt-0.5">
           Cap: {formatMarketCap(coin.market_cap, currency)}
         </div>
       </div>
