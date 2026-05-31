@@ -101,6 +101,11 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-full bg-dark-900">
+      {/* Overlay safe area: copre la fascia della status bar con il colore dell'app */}
+      <div
+        className="fixed inset-x-0 top-0 bg-dark-900 z-50 pointer-events-none"
+        style={{ height: 'env(safe-area-inset-top)' }}
+      />
       {/* Header */}
       <header className="bg-dark-900 border-b border-dark-700 px-4 pt-safe sticky top-0 z-40">
         <div className="max-w-lg mx-auto">
