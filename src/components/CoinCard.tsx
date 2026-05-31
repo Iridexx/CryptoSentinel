@@ -1,4 +1,4 @@
-import type { FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import type { Coin } from '../types';
 import type { Currency } from '../hooks/useCurrency';
 import { hapticMedium, hapticLight } from '../utils/haptics';
@@ -48,6 +48,19 @@ const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, c
   const isPositive = displayChange >= 0;
   const sym = SYMBOL[currency];
 
+  // Flash verde/rosso quando il prezzo cambia rispetto al dato precedente
+  const prevPriceRef = useRef(coin.current_price);
+  const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+
+  useEffect(() => {
+    const prev = prevPriceRef.current;
+    if (prev === coin.current_price) return;
+    prevPriceRef.current = coin.current_price;
+    setFlash(coin.current_price > prev ? 'up' : 'down');
+    const t = setTimeout(() => setFlash(null), 800);
+    return () => clearTimeout(t);
+  }, [coin.current_price]);
+
   return (
     <div className="flex items-center gap-3 bg-dark-800 rounded-xl p-3 hover:bg-dark-700 transition-colors">
       <span className="text-xs text-white font-mono w-6 text-right flex-shrink-0 tabular-nums">
@@ -68,7 +81,13 @@ const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, c
       </div>
 
       <div className="text-right flex-shrink-0">
-        <div className="font-bold text-sm text-white">{sym}{formatPrice(coin.current_price, currency)}</div>
+        <div className={`font-bold text-sm transition-colors duration-300 ${
+          flash === 'up' ? 'text-accent-green' :
+          flash === 'down' ? 'text-accent-red' :
+          'text-white'
+        }`}>
+          {sym}{formatPrice(coin.current_price, currency)}
+        </div>
         <div className={`text-xs font-medium mt-0.5 ${isPositive ? 'text-accent-green' : 'text-accent-red'}`}>
           {isPositive ? '▲' : '▼'} {Math.abs(displayChange).toFixed(2)}%
           {timeFrame !== '24h' && <span className="text-gray-600 ml-0.5">{timeFrame === '1h' ? '1h' : '7g'}</span>}
