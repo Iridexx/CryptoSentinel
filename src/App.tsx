@@ -211,7 +211,7 @@ export default function App() {
 
       <main ref={mainRef} className="flex-1 overflow-y-auto overscroll-y-none pb-20">
         {/* Pull-to-refresh indicator — altezza gestita direttamente via DOM */}
-        <div ref={ptrRef} className="flex items-center justify-center overflow-hidden" style={{ height: 0 }}>
+        <div ref={ptrRef} className="h-0 flex items-center justify-center overflow-hidden">
           {ptrRefreshing ? (
             <svg className="w-5 h-5 text-accent-blue animate-spin" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
