@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { openNotificationSettings } from '../utils/notifications';
 import { openBatterySettings } from '../utils/energySaving';
 import { checkForUpdates, downloadAndInstall, openDownloadsFolder, getDevBuildInfo, mergeToMain, APK_PAGES_URL, type UpdateResult, type DevBuildInfo } from '../utils/update';
+import type { Currency } from '../hooks/useCurrency';
 
 const DONATION_OPTIONS = [
   {
@@ -105,6 +106,8 @@ interface Props {
   dlState: 'idle' | 'downloading' | 'done';
   onDownloadStart: () => void;
   onDownloadDone: () => void;
+  currency: Currency;
+  onCurrencyChange: (c: Currency) => void;
 }
 
 const SettingsTab: FC<Props> = ({
@@ -119,6 +122,8 @@ const SettingsTab: FC<Props> = ({
   dlState,
   onDownloadStart,
   onDownloadDone,
+  currency,
+  onCurrencyChange,
 }) => {
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [updateInfo, setUpdateInfo] = useState<UpdateResult | null>(null);
@@ -281,7 +286,6 @@ const SettingsTab: FC<Props> = ({
             </button>
           )}
 
-          {/* Banner stato download aggiornamento */}
           {updateState === 'available' && dlState !== 'idle' && (
             <div className={`rounded-lg px-3 py-2.5 flex items-center justify-between gap-3 ${
               dlState === 'done'
@@ -371,6 +375,30 @@ const SettingsTab: FC<Props> = ({
           </div>
         </section>
       )}
+
+      {/* Personalizzazione */}
+      <section>
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-1">Personalizzazione</h2>
+        <div className="bg-dark-800 rounded-xl px-4 py-3 space-y-3">
+          <div>
+            <p className="text-sm text-white mb-1">Valuta di visualizzazione</p>
+            <p className="text-xs text-gray-500 mb-3">Cambia la valuta con cui vengono mostrati prezzi e capitalizzazione</p>
+            <div className="flex gap-2">
+              {([['usd', '$ USD'], ['eur', '€ EUR'], ['btc', '₿ BTC']] as const).map(([c, label]) => (
+                <button
+                  key={c}
+                  onClick={() => onCurrencyChange(c)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    currency === c ? 'bg-accent-blue text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Aggiornamento prezzi */}
       <section>
@@ -480,7 +508,6 @@ const SettingsTab: FC<Props> = ({
           rel="noopener noreferrer"
           className="flex items-center gap-3 bg-dark-800 rounded-xl px-4 py-3 hover:bg-dark-700 active:bg-dark-600 transition-colors group"
         >
-          {/* Logo X */}
           <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="black">
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
@@ -500,7 +527,6 @@ const SettingsTab: FC<Props> = ({
       <section>
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-1">Supporta lo sviluppatore</h2>
         <div className="bg-dark-800 rounded-xl divide-y divide-dark-700">
-          {/* Buy Me a Coffee */}
           <a
             href="https://buymeacoffee.com/eifel3btc"
             target="_blank"
@@ -516,7 +542,6 @@ const SettingsTab: FC<Props> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
           </a>
-          {/* Crypto */}
           {DONATION_OPTIONS.map((opt, i) => (
             <DonationRow
               key={opt.address}
@@ -560,19 +585,8 @@ const SettingsTab: FC<Props> = ({
             />
             {pinError && <p className="text-xs text-accent-red text-center mb-3">PIN errato</p>}
             <div className="flex gap-2">
-              <button
-                onClick={() => setDevState('locked')}
-                className="flex-1 py-2 bg-dark-700 text-gray-400 text-sm rounded-lg"
-              >
-                Annulla
-              </button>
-              <button
-                onClick={handlePinSubmit}
-                disabled={pinInput.length !== 4}
-                className="flex-1 py-2 bg-accent-blue text-white text-sm font-semibold rounded-lg disabled:opacity-40"
-              >
-                Sblocca
-              </button>
+              <button onClick={() => setDevState('locked')} className="flex-1 py-2 bg-dark-700 text-gray-400 text-sm rounded-lg">Annulla</button>
+              <button onClick={handlePinSubmit} disabled={pinInput.length !== 4} className="flex-1 py-2 bg-accent-blue text-white text-sm font-semibold rounded-lg disabled:opacity-40">Sblocca</button>
             </div>
           </div>
         )}
@@ -583,17 +597,10 @@ const SettingsTab: FC<Props> = ({
               <span className="text-sm font-semibold text-accent-blue">⚙️ Modalità Sviluppatore</span>
               <button onClick={() => setDevState('locked')} className="text-gray-500 text-lg">×</button>
             </div>
-
             <div className="px-4 py-4 space-y-3">
               {devLoadState === 'idle' && (
-                <button
-                  onClick={handleLoadDevBuild}
-                  className="w-full py-2.5 bg-dark-700 text-gray-300 text-sm rounded-lg hover:bg-dark-600 transition-colors"
-                >
-                  Controlla ultima dev build
-                </button>
+                <button onClick={handleLoadDevBuild} className="w-full py-2.5 bg-dark-700 text-gray-300 text-sm rounded-lg hover:bg-dark-600 transition-colors">Controlla ultima dev build</button>
               )}
-
               {devLoadState === 'loading' && (
                 <div className="flex items-center justify-center gap-2 py-2 text-gray-400 text-sm">
                   <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -603,123 +610,49 @@ const SettingsTab: FC<Props> = ({
                   Caricamento…
                 </div>
               )}
-
               {devLoadState === 'error' && (
                 <p className="text-xs text-accent-red text-center">Errore nel caricamento. Nessuna dev build disponibile.</p>
               )}
-
               {devLoadState === 'loaded' && devBuildInfo && (
                 <>
                   <div className="bg-dark-700 rounded-lg divide-y divide-dark-600">
-                    <div className="px-3 py-2 flex justify-between">
-                      <span className="text-xs text-gray-500">Build</span>
-                      <span className="text-xs text-white font-mono">#{devBuildInfo.buildNumber ?? '—'}</span>
-                    </div>
-                    <div className="px-3 py-2 flex justify-between">
-                      <span className="text-xs text-gray-500">Branch</span>
-                      <span className="text-xs text-accent-blue font-mono truncate max-w-[60%] text-right">{devBuildInfo.branch ?? '—'}</span>
-                    </div>
-                    <div className="px-3 py-2 flex justify-between">
-                      <span className="text-xs text-gray-500">Data</span>
-                      <span className="text-xs text-white">{devBuildInfo.buildDate}</span>
-                    </div>
+                    <div className="px-3 py-2 flex justify-between"><span className="text-xs text-gray-500">Build</span><span className="text-xs text-white font-mono">#{devBuildInfo.buildNumber ?? '—'}</span></div>
+                    <div className="px-3 py-2 flex justify-between"><span className="text-xs text-gray-500">Branch</span><span className="text-xs text-accent-blue font-mono truncate max-w-[60%] text-right">{devBuildInfo.branch ?? '—'}</span></div>
+                    <div className="px-3 py-2 flex justify-between"><span className="text-xs text-gray-500">Data</span><span className="text-xs text-white">{devBuildInfo.buildDate}</span></div>
                   </div>
-
                   <div className="flex gap-2">
-                    <button
-                      onClick={handleLoadDevBuild}
-                      className="p-2.5 bg-dark-700 text-gray-400 rounded-lg hover:text-white transition-colors"
-                      title="Aggiorna"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
+                    <button onClick={handleLoadDevBuild} className="p-2.5 bg-dark-700 text-gray-400 rounded-lg hover:text-white transition-colors" title="Aggiorna">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                     </button>
                     {devBuildInfo.downloadUrl && (
-                      <button
-                        onClick={() => handleDownload(devBuildInfo.downloadUrl!)}
-                        disabled={dlState === 'downloading'}
-                        className="flex-1 py-2.5 bg-accent-blue text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-60"
-                      >
+                      <button onClick={() => handleDownload(devBuildInfo.downloadUrl!)} disabled={dlState === 'downloading'} className="flex-1 py-2.5 bg-accent-blue text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-60">
                         {dlState === 'downloading' ? 'Download in corso…' : `Scarica build #${devBuildInfo.buildNumber}`}
                       </button>
                     )}
                   </div>
-
-                  {/* Banner stato download */}
                   {dlState !== 'idle' && (
-                    <div className={`rounded-lg px-3 py-2.5 flex items-center justify-between gap-3 ${
-                      dlState === 'done'
-                        ? 'bg-accent-green/10 border border-accent-green/20'
-                        : 'bg-accent-blue/10 border border-accent-blue/20'
-                    }`}>
+                    <div className={`rounded-lg px-3 py-2.5 flex items-center justify-between gap-3 ${dlState === 'done' ? 'bg-accent-green/10 border border-accent-green/20' : 'bg-accent-blue/10 border border-accent-blue/20'}`}>
                       <div className="flex items-center gap-2 min-w-0">
-                        {dlState === 'downloading' ? (
-                          <svg className="w-4 h-4 text-accent-blue flex-shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                          </svg>
-                        ) : (
-                          <span className="text-accent-green text-sm flex-shrink-0">✓</span>
-                        )}
-                        <p className="text-xs text-gray-300 truncate">
-                          {dlState === 'downloading' ? 'Download in corso…' : 'Download completato'}
-                        </p>
+                        {dlState === 'downloading' ? (<svg className="w-4 h-4 text-accent-blue flex-shrink-0 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>) : (<span className="text-accent-green text-sm flex-shrink-0">✓</span>)}
+                        <p className="text-xs text-gray-300 truncate">{dlState === 'downloading' ? 'Download in corso…' : 'Download completato'}</p>
                       </div>
-                      <button
-                        onClick={openDownloadsFolder}
-                        className="flex-shrink-0 text-xs text-accent-blue underline underline-offset-2 whitespace-nowrap"
-                      >
-                        📁 Apri Download
-                      </button>
+                      <button onClick={openDownloadsFolder} className="flex-shrink-0 text-xs text-accent-blue underline underline-offset-2 whitespace-nowrap">📁 Apri Download</button>
                     </div>
                   )}
-
-                  {/* Merge in main */}
                   <div className="border-t border-dark-600 pt-3 space-y-2">
                     <p className="text-xs text-gray-500">GitHub Token (PAT con scope repo)</p>
                     <div className="flex gap-2">
-                      <input
-                        type={showToken ? 'text' : 'password'}
-                        value={ghToken}
-                        onChange={(e) => handleSaveToken(e.target.value)}
-                        placeholder="ghp_xxxxxxxxxxxx"
-                        className="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-accent-blue font-mono"
-                      />
-                      <button
-                        onClick={() => setShowToken(v => !v)}
-                        className="px-2.5 bg-dark-700 text-gray-400 rounded-lg text-xs"
-                      >
-                        {showToken ? 'Nascondi' : 'Mostra'}
-                      </button>
+                      <input type={showToken ? 'text' : 'password'} value={ghToken} onChange={(e) => handleSaveToken(e.target.value)} placeholder="ghp_xxxxxxxxxxxx" className="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-accent-blue font-mono" />
+                      <button onClick={() => setShowToken(v => !v)} className="px-2.5 bg-dark-700 text-gray-400 rounded-lg text-xs">{showToken ? 'Nascondi' : 'Mostra'}</button>
                     </div>
-
                     {mergeState === 'done' ? (
-                      <div className="py-2.5 bg-accent-green/10 border border-accent-green/20 rounded-lg text-center text-xs text-accent-green font-semibold">
-                        ✓ Merge completato su main
-                      </div>
+                      <div className="py-2.5 bg-accent-green/10 border border-accent-green/20 rounded-lg text-center text-xs text-accent-green font-semibold">✓ Merge completato su main</div>
                     ) : (
-                      <button
-                        onClick={handleMerge}
-                        disabled={!ghToken || !devBuildInfo.branch || mergeState === 'merging'}
-                        className="w-full py-2.5 bg-accent-green/20 text-accent-green text-sm font-semibold rounded-lg hover:bg-accent-green/30 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
-                      >
-                        {mergeState === 'merging' ? (
-                          <>
-                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                            </svg>
-                            Merge in corso…
-                          </>
-                        ) : (
-                          `Valida e merga in main`
-                        )}
+                      <button onClick={handleMerge} disabled={!ghToken || !devBuildInfo.branch || mergeState === 'merging'} className="w-full py-2.5 bg-accent-green/20 text-accent-green text-sm font-semibold rounded-lg hover:bg-accent-green/30 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+                        {mergeState === 'merging' ? (<><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>Merge in corso…</>) : ('Valida e merga in main')}
                       </button>
                     )}
-                    {mergeState === 'error' && (
-                      <p className="text-xs text-accent-red">{mergeError}</p>
-                    )}
+                    {mergeState === 'error' && <p className="text-xs text-accent-red">{mergeError}</p>}
                   </div>
                 </>
               )}
