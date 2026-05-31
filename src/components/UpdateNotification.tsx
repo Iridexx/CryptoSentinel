@@ -57,17 +57,19 @@ const UpdateNotification: FC<Props> = ({ update, onDismiss, onDownloadStart }) =
             </div>
 
             {/* Version card */}
-            <div className="bg-dark-700 rounded-xl px-4 py-3 mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500 mb-0.5">CryptoWatch</p>
-                {update.buildNumber && (
-                  <p className="text-white font-bold text-lg font-mono">Build #{update.buildNumber}</p>
-                )}
-                <p className="text-xs text-gray-500 mt-0.5">{update.releaseDate}</p>
+            <div className="bg-dark-700 rounded-xl px-4 py-3 mb-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-500 mb-0.5">CryptoWatch</p>
+                  <p className="text-white font-bold text-lg font-mono truncate">
+                    {update.releaseName ?? (update.buildNumber ? `Build #${update.buildNumber}` : 'Nuova versione')}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">{update.releaseDate}</p>
+                </div>
+                <span className="flex-shrink-0 self-center text-xs font-semibold text-accent-green bg-accent-green/10 px-2.5 py-1 rounded-full">
+                  Nuova
+                </span>
               </div>
-              <span className="text-xs font-semibold text-accent-green bg-accent-green/10 px-2.5 py-1 rounded-full">
-                Nuova
-              </span>
             </div>
 
             {/* Release notes */}

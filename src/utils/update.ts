@@ -19,6 +19,7 @@ export const APK_PAGES_URL = 'https://iridexx.github.io/test_app_cloude/CryptoWa
 
 export interface UpdateResult {
   available: boolean;
+  releaseName: string | null;
   releaseDate: string;
   buildNumber: string | null;
   releaseNotes: string | null;
@@ -53,6 +54,7 @@ export async function checkForUpdates(currentBuildNumber: string): Promise<Updat
 
   return {
     available,
+    releaseName: (release.name as string) ?? null,
     releaseDate: releaseDate.toLocaleDateString('it-IT', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
