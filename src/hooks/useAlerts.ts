@@ -45,6 +45,7 @@ export function useAlerts(coins: Coin[]) {
   const [alerts, setAlerts] = useState<PriceAlert[]>(loadAlerts);
   const [history, setHistory] = useState<AlertHistoryEntry[]>(loadHistory);
   const lastTriggeredRef = useRef<Set<string>>(new Set());
+  const prevPricesRef = useRef<Map<string, number>>(new Map());
   const alertsRef = useRef<PriceAlert[]>(alerts);
   alertsRef.current = alerts;
 
@@ -83,6 +84,14 @@ export function useAlerts(coins: Coin[]) {
   useEffect(() => {
     if (coins.length === 0) return;
 
+    const prevPrices = prevPricesRef.current;
+
+    // Prima lettura: popola i prezzi senza sparare (evita notifiche all'apertura app)
+    if (prevPrices.size === 0) {
+      coins.forEach(c => prevPrices.set(c.id, c.current_price));
+      return;
+    }
+
     type FireItem = { alert: PriceAlert; coinName: string; direction: 'above' | 'below'; threshold: number; currentPrice: number };
     const toFire: FireItem[] = [];
     const toTriggerIds = new Set<string>();
@@ -92,9 +101,12 @@ export function useAlerts(coins: Coin[]) {
       if (!coin || alert.triggered || lastTriggeredRef.current.has(alert.id)) continue;
 
       const price = coin.current_price;
+      const prevPrice = prevPrices.get(coin.id);
+
+      // Scatta solo se il prezzo attraversa la soglia (crossing detection)
       const fires =
-        (alert.direction === 'above' && price >= alert.threshold) ||
-        (alert.direction === 'below' && price <= alert.threshold);
+        (alert.direction === 'above' && prevPrice !== undefined && prevPrice < alert.threshold && price >= alert.threshold) ||
+        (alert.direction === 'below' && prevPrice !== undefined && prevPrice > alert.threshold && price <= alert.threshold);
 
       if (fires) {
         lastTriggeredRef.current.add(alert.id);
@@ -102,6 +114,9 @@ export function useAlerts(coins: Coin[]) {
         toFire.push({ alert, coinName: alert.coinName, direction: alert.direction, threshold: alert.threshold, currentPrice: price });
       }
     }
+
+    // Aggiorna i prezzi precedenti
+    coins.forEach(c => prevPrices.set(c.id, c.current_price));
 
     if (toFire.length === 0) return;
 
@@ -153,11 +168,6 @@ export function useAlerts(coins: Coin[]) {
   const clearHistory = useCallback(() => {
     setHistory([]);
     localStorage.removeItem(HISTORY_KEY);
-  }, []);
-
-  useEffect(() => {
-    const initial = loadAlerts();
-    if (initial.length > 0) syncAlertsToNative(initial);
   }, []);
 
   return { alerts, addAlert, removeAlert, resetAlert, editAlert, clearAlerts, history, clearHistory };

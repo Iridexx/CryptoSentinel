@@ -50,14 +50,17 @@ export async function sendAlertNotification(params: {
     try {
       const perm = await LocalNotifications.checkPermissions();
       if (perm.display !== 'granted') return;
+      const arrow = params.direction === 'above' ? '▲' : '▼';
+      const label = params.direction === 'above' ? 'superato al rialzo' : 'superato al ribasso';
+      const fmt = (v: number) => v >= 1000 ? v.toLocaleString('it-IT', { maximumFractionDigits: 0 }) : v >= 1 ? v.toFixed(2) : v.toFixed(6);
       await LocalNotifications.schedule({
         notifications: [{
-          id: Math.floor(Math.random() * 2_000_000),
+          id: (Date.now() % 2_000_000) | 0,
           channelId: 'price_alerts',
-          title: `🚨 ${params.coinName}`,
-          body: `Prezzo ${params.direction === 'above' ? 'sopra' : 'sotto'} $${params.threshold.toLocaleString()} · Attuale: $${params.currentPrice.toLocaleString()}`,
+          title: `${arrow} ${params.coinName} — soglia ${label}`,
+          body: `Soglia: $${fmt(params.threshold)}  ·  Prezzo attuale: $${fmt(params.currentPrice)}`,
           sound: 'default',
-          smallIcon: 'ic_launcher',
+          smallIcon: 'ic_notification',
           autoCancel: true,
         }],
       });
