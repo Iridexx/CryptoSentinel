@@ -159,7 +159,7 @@ export default function App() {
     setTimeout(() => setRefreshFlash(false), 1500);
   }, [refresh]);
 
-  const { containerRef: mainRef, indicatorRef: ptrRef, isRefreshing: ptrRefreshing } = usePullToRefresh(handleRefresh);
+  const { containerRef: mainRef, indicatorRef: ptrRef, isRefreshing: ptrRefreshing } = usePullToRefresh(handleRefresh, isUpdateVisible);
 
   const handleIntervalChange = useCallback((ms: number) => {
     setRefreshInterval(ms);
