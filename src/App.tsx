@@ -161,7 +161,7 @@ export default function App() {
   }, []);
 
   const handleConfirmAlert = useCallback(
-    (direction: 'above' | 'below', threshold: number, percentChange?: number) => {
+    (direction: 'above' | 'below', threshold: number, percentChange?: number, note?: string) => {
       if (!selectedCoin) return;
       addAlert({
         coinId: selectedCoin.id,
@@ -171,6 +171,7 @@ export default function App() {
         direction,
         threshold,
         percentChange,
+        note,
       });
     },
     [selectedCoin, addAlert]

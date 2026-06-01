@@ -4,7 +4,7 @@ import { hapticMedium, hapticLight } from '../utils/haptics';
 
 interface Props {
   coin: Coin;
-  onConfirm: (direction: AlertDirection, threshold: number, percentChange?: number) => void;
+  onConfirm: (direction: AlertDirection, threshold: number, percentChange?: number, note?: string) => void;
   onClose: () => void;
 }
 
@@ -52,6 +52,7 @@ const AlertModal: FC<Props> = ({ coin, onConfirm, onClose }) => {
     return p.toFixed(6);
   });
   const [pctValue, setPctValue] = useState('5');
+  const [note, setNote] = useState('');
   const [error, setError] = useState('');
 
   const pctNum = parseFloat(pctValue.replace(',', '.'));
@@ -62,13 +63,14 @@ const AlertModal: FC<Props> = ({ coin, onConfirm, onClose }) => {
     : null;
 
   const handleSubmit = () => {
+    const trimmedNote = note.trim() || undefined;
     if (mode === 'price') {
       const num = parsePrice(priceValue);
       if (isNaN(num) || num <= 0) {
         setError('Inserisci un prezzo valido maggiore di zero');
         return;
       }
-      onConfirm(direction, num);
+      onConfirm(direction, num, undefined, trimmedNote);
     } else {
       if (isNaN(pctNum) || pctNum <= 0) {
         setError('Inserisci una percentuale valida maggiore di zero');
@@ -78,7 +80,7 @@ const AlertModal: FC<Props> = ({ coin, onConfirm, onClose }) => {
         setError('Percentuale non valida');
         return;
       }
-      onConfirm(direction, calcThreshold, pctNum);
+      onConfirm(direction, calcThreshold, pctNum, trimmedNote);
     }
     onClose();
   };
@@ -198,6 +200,18 @@ const AlertModal: FC<Props> = ({ coin, onConfirm, onClose }) => {
         )}
 
         {error && <p className="text-accent-red text-xs mt-1 mb-1">{error}</p>}
+
+        {/* Nota opzionale */}
+        <div className="mb-2 mt-3">
+          <label className="text-gray-400 text-xs mb-1 block">Nota (opzionale)</label>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Es: Livello chiave di supporto, target TP…"
+            rows={2}
+            className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-accent-blue transition-colors resize-none"
+          />
+        </div>
 
         {/* Anteprima */}
         <p className="text-gray-500 text-xs mb-4 mt-2">

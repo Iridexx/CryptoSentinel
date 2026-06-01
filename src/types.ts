@@ -25,6 +25,7 @@ export interface PriceAlert {
   direction: AlertDirection;
   threshold: number;
   percentChange?: number;
+  note?: string;
   triggered: boolean;
   createdAt: number;
 }

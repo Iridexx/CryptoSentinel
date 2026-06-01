@@ -111,7 +111,7 @@ export function useAlerts(coins: Coin[]) {
       return;
     }
 
-    type FireItem = { alert: PriceAlert; coinName: string; direction: 'above' | 'below'; threshold: number; currentPrice: number };
+    type FireItem = { alert: PriceAlert; coinName: string; direction: 'above' | 'below'; threshold: number; currentPrice: number; note?: string };
     const toFire: FireItem[] = [];
     const toTriggerIds = new Set<string>();
 
@@ -130,7 +130,7 @@ export function useAlerts(coins: Coin[]) {
       if (fires) {
         lastTriggeredRef.current.add(alert.id);
         toTriggerIds.add(alert.id);
-        toFire.push({ alert, coinName: alert.coinName, direction: alert.direction, threshold: alert.threshold, currentPrice: price });
+        toFire.push({ alert, coinName: alert.coinName, direction: alert.direction, threshold: alert.threshold, currentPrice: price, note: alert.note });
       }
     }
 
@@ -192,9 +192,9 @@ export function useAlerts(coins: Coin[]) {
     return () => { alive = false; };
   }, [coins]);
 
-  const editAlert = useCallback((id: string, threshold: number, direction: AlertDirection, percentChange?: number) => {
+  const editAlert = useCallback((id: string, threshold: number, direction: AlertDirection, percentChange?: number, note?: string) => {
     setAlerts((prev) => {
-      const next = prev.map((a) => a.id === id ? { ...a, threshold, direction, percentChange, triggered: false } : a);
+      const next = prev.map((a) => a.id === id ? { ...a, threshold, direction, percentChange, note: note !== undefined ? note : a.note, triggered: false } : a);
       saveAlerts(next);
       return next;
     });

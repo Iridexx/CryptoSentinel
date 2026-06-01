@@ -119,7 +119,7 @@ public class PriceCheckWorker extends Worker {
                 if (fire) {
                     a.put("triggered", true);
                     changed = true;
-                    notify(a.optString("coinName"), dir, threshold, price);
+                    notify(a.optString("coinName"), dir, threshold, price, a.optString("note", null));
                 }
             }
             if (changed) prefs.edit().putString(KEY, alerts.toString()).apply();
@@ -159,12 +159,13 @@ public class PriceCheckWorker extends Worker {
         }
     }
 
-    private void notify(String coinName, String dir, double threshold, double price) {
+    private void notify(String coinName, String dir, double threshold, double price, String note) {
         Context ctx = getApplicationContext();
         String arrow = dir.equals("above") ? "▲" : "▼";
         String label = dir.equals("above") ? "superato al rialzo" : "superato al ribasso";
         String title = arrow + " " + coinName + " — soglia " + label;
         String body  = "Soglia: $" + fmt(threshold) + "  ·  Prezzo attuale: $" + fmt(price);
+        if (note != null && !note.isEmpty()) body += "\n📝 " + note;
 
         Intent intent = new Intent(ctx, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);

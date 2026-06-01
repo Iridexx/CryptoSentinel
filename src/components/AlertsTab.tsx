@@ -102,7 +102,7 @@ interface Props {
   onRemove: (id: string) => void;
   onReset: (id: string) => void;
   coins: Coin[];
-  onEdit: (id: string, threshold: number, direction: AlertDirection, percentChange?: number) => void;
+  onEdit: (id: string, threshold: number, direction: AlertDirection, percentChange?: number, note?: string) => void;
   history: AlertHistoryEntry[];
   onClearHistory: () => void;
   sliderRange: number;
@@ -224,7 +224,7 @@ interface AlertRowProps {
   alert: PriceAlert;
   onRemove: (id: string) => void;
   onReset: (id: string) => void;
-  onEdit: (id: string, threshold: number, direction: AlertDirection, percentChange?: number) => void;
+  onEdit: (id: string, threshold: number, direction: AlertDirection, percentChange?: number, note?: string) => void;
   coin?: Coin;
   sliderRange: number;
 }
@@ -237,6 +237,7 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, s
   const [editField, setEditField] = useState<'price' | 'percent' | null>(null);
   const [priceInput, setPriceInput] = useState('');
   const [pctInput, setPctInput] = useState('');
+  const [draftNote, setDraftNote] = useState(alert.note ?? '');
 
   const isAbove = alert.direction === 'above';
   // Centra lo slider sul prezzo di mercato attuale — la stanghetta blu è sempre a 50%
@@ -257,6 +258,7 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, s
     setSliderValue(thresholdToSlider(alert.threshold));
     setDraftThreshold(alert.threshold);
     setDraftDirection(alert.direction);
+    setDraftNote(alert.note ?? '');
     setEditField(null);
     setEditing(true);
   };
@@ -273,7 +275,7 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, s
     const newPct = coin
       ? Math.abs((draftThreshold - coin.current_price) / coin.current_price * 100)
       : undefined;
-    onEdit(alert.id, draftThreshold, draftDirection, newPct);
+    onEdit(alert.id, draftThreshold, draftDirection, newPct, draftNote.trim() || undefined);
     setEditing(false);
   };
 
@@ -319,6 +321,11 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, s
               </span>
             )}
           </div>
+          {alert.note && (
+            <div className="text-xs text-gray-500 mt-0.5 truncate max-w-[200px]">
+              📝 {alert.note}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
           {!editing && <span className="text-gray-600 text-xs mr-1">✏️</span>}
@@ -433,6 +440,18 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, s
             <span>${formatPrice(sliderMin)}</span>
             <span className="text-gray-700">−{sliderRange}% · +{sliderRange}%</span>
             <span>${formatPrice(sliderMax)}</span>
+          </div>
+
+          {/* Nota */}
+          <div className="mb-3">
+            <label className="text-xs text-gray-500 mb-1 block">Nota</label>
+            <textarea
+              value={draftNote}
+              onChange={(e) => setDraftNote(e.target.value)}
+              placeholder="Aggiungi una nota…"
+              rows={2}
+              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-accent-blue transition-colors resize-none"
+            />
           </div>
 
           <div className="flex gap-2">

@@ -88,6 +88,7 @@ Novità di questa versione:
 • Modifica allarme con input diretto prezzo o percentuale (oltre allo slider)
 • Slider allarmi fluido (pointer events, zero jank) centrato sul prezzo di mercato
 • Impostazione range variazione slider in Impostazioni (±5% ±10% ±20% ±30% ±50%)
+• Note personalizzate per ogni allarme — visibili nella notifica e nell'elenco
 NOTES
 )" \
             --latest \
