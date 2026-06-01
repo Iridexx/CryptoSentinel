@@ -37,10 +37,62 @@ export default function App() {
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('24h');
   const [page, setPage] = useState(1);
   const [availableUpdate, setAvailableUpdate] = useState<UpdateResult | null>(null);
-  const [updateDismissed, setUpdateDismissed] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>('rank');
   const [sortDesc, setSortDesc] = useState(true);
   const lastUpdateCheckRef = useRef<number>(0);
+
+  // — Update dismiss/snooze —
+  const [dismissedBuild, setDismissedBuild] = useState<string | null>(() =>
+    localStorage.getItem('cs_dismissed_build')
+  );
+  const [snoozedBuild, setSnoozedBuild] = useState<string | null>(() =>
+    localStorage.getItem('cs_snoozed_build')
+  );
+  const [snoozedUntil, setSnoozedUntil] = useState<number>(() =>
+    Number(localStorage.getItem('cs_snoozed_until') ?? 0)
+  );
+
+  // Re-mostra il popup quando lo snooze scade (senza bisogno di riaprire l'app)
+  useEffect(() => {
+    if (!snoozedUntil || Date.now() > snoozedUntil) return;
+    const t = setTimeout(() => setSnoozedUntil(0), snoozedUntil - Date.now());
+    return () => clearTimeout(t);
+  }, [snoozedUntil]);
+
+  const isUpdateVisible = useMemo(() =>
+    availableUpdate != null &&
+    availableUpdate.buildNumber !== dismissedBuild &&
+    (snoozedBuild !== availableUpdate.buildNumber || Date.now() > snoozedUntil),
+    [availableUpdate, dismissedBuild, snoozedBuild, snoozedUntil]
+  );
+
+  // "Ignora": nasconde questa versione specifica per sempre (fino a build più nuovo)
+  const handleIgnoreUpdate = useCallback(() => {
+    const build = availableUpdate?.buildNumber ?? '_';
+    localStorage.setItem('cs_dismissed_build', build);
+    setDismissedBuild(build);
+  }, [availableUpdate]);
+
+  // "Dopo": riappare dopo 4 ore, oppure subito se esce un build più nuovo
+  const handleSnoozeUpdate = useCallback(() => {
+    const build = availableUpdate?.buildNumber ?? '_';
+    const until = Date.now() + 4 * 60 * 60 * 1000;
+    localStorage.setItem('cs_snoozed_build', build);
+    localStorage.setItem('cs_snoozed_until', String(until));
+    setSnoozedBuild(build);
+    setSnoozedUntil(until);
+  }, [availableUpdate]);
+
+  // Dopo download completato: resetta tutto
+  const handleUpdateDone = useCallback(() => {
+    setAvailableUpdate(null);
+    localStorage.removeItem('cs_dismissed_build');
+    localStorage.removeItem('cs_snoozed_build');
+    localStorage.removeItem('cs_snoozed_until');
+    setDismissedBuild(null);
+    setSnoozedBuild(null);
+    setSnoozedUntil(0);
+  }, []);
 
   const runUpdateCheck = useCallback(async () => {
     lastUpdateCheckRef.current = Date.now();
@@ -268,11 +320,13 @@ export default function App() {
             </div>
           )}
 
-          {availableUpdate && !updateDismissed && (
+          {availableUpdate && isUpdateVisible && (
             <UpdateNotification
               update={availableUpdate}
               dlState={dlState}
-              onDismiss={() => setUpdateDismissed(true)}
+              onIgnore={handleIgnoreUpdate}
+              onSnooze={handleSnoozeUpdate}
+              onDismiss={handleUpdateDone}
               onDownloadStart={() => setDlState('downloading')}
             />
           )}
