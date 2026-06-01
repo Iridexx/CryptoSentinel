@@ -73,6 +73,7 @@ const UpdateNotification: FC<Props> = ({ update, dlState, onDismiss, onDownloadS
           <div
             className="bg-dark-800 rounded-2xl w-full max-w-sm p-5 shadow-2xl border border-dark-600 flex flex-col max-h-[85vh]"
             onClick={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
           >
             {dlState === 'done' ? (
               /* ── Stato: download completato ── */
@@ -144,7 +145,7 @@ const UpdateNotification: FC<Props> = ({ update, dlState, onDismiss, onDownloadS
                 {update.releaseNotes && (
                   <div className="mb-4 flex flex-col min-h-0">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex-shrink-0">Note di rilascio</p>
-                    <div className="overflow-y-auto max-h-40">
+                    <div className="overflow-y-auto max-h-40 overscroll-contain">
                       <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-line">
                         {update.releaseNotes}
                       </p>
