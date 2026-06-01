@@ -32,10 +32,12 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class PriceCheckWorker extends Worker {
-    private static final String PREFS   = "cryptosentinel_prefs";
-    private static final String KEY     = "alerts_json";
-    private static final String CHANNEL = "price_alerts";
-    private static final String TAG     = "PriceCheckWorker";
+    private static final String PREFS        = "cryptosentinel_prefs";
+    private static final String KEY          = "alerts_json";
+    private static final String RANGE_KEY    = "range_alerts_json";
+    private static final String CHANNEL      = "price_alerts";
+    private static final String TAG          = "PriceCheckWorker";
+    private static final long   COOLDOWN_MS  = 5 * 60 * 1000L;
     private static final String WORK_TAG      = "price_check";
     private static final String WORK_IMMEDIATE = "price_check_immediate";
 
@@ -87,6 +89,9 @@ public class PriceCheckWorker extends Worker {
             String alertsJson = prefs.getString(KEY, "[]");
             JSONArray alerts = new JSONArray(alertsJson);
 
+            String rangeAlertsJson = prefs.getString(RANGE_KEY, "[]");
+            JSONArray rangeAlerts = new JSONArray(rangeAlertsJson);
+
             List<String> coinIds = new ArrayList<>();
             for (int i = 0; i < alerts.length(); i++) {
                 JSONObject a = alerts.getJSONObject(i);
@@ -94,6 +99,10 @@ public class PriceCheckWorker extends Worker {
                     String id = a.optString("coinId");
                     if (!id.isEmpty() && !coinIds.contains(id)) coinIds.add(id);
                 }
+            }
+            for (int i = 0; i < rangeAlerts.length(); i++) {
+                String id = rangeAlerts.getJSONObject(i).optString("coinId");
+                if (!id.isEmpty() && !coinIds.contains(id)) coinIds.add(id);
             }
             if (coinIds.isEmpty()) return Result.success();
 
@@ -123,6 +132,40 @@ public class PriceCheckWorker extends Worker {
                 }
             }
             if (changed) prefs.edit().putString(KEY, alerts.toString()).apply();
+
+            // Process range alerts
+            boolean rangeChanged = false;
+            long nowMs = System.currentTimeMillis();
+            for (int i = 0; i < rangeAlerts.length(); i++) {
+                JSONObject a = rangeAlerts.getJSONObject(i);
+                String coinId = a.optString("coinId");
+                if (!prices.has(coinId)) continue;
+                double price = prices.getJSONObject(coinId).optDouble("usd", -1);
+                if (price < 0) continue;
+
+                double minPrice = a.optDouble("minPrice", 0);
+                double maxPrice = a.optDouble("maxPrice", 0);
+                boolean isInside = price >= minPrice && price <= maxPrice;
+
+                if (!a.has("isInsideRange") || a.isNull("isInsideRange")) {
+                    a.put("isInsideRange", isInside);
+                    rangeChanged = true;
+                    continue;
+                }
+
+                boolean wasInside = a.optBoolean("isInsideRange", false);
+                if (isInside == wasInside) continue;
+
+                long lastNotified = a.optLong("lastNotifiedAt", 0);
+                a.put("isInsideRange", isInside);
+                rangeChanged = true;
+                if (nowMs - lastNotified >= COOLDOWN_MS) {
+                    a.put("lastNotifiedAt", nowMs);
+                    notifyRange(a.optString("coinName"), minPrice, maxPrice, price, isInside, a.optString("note", null));
+                }
+            }
+            if (rangeChanged) prefs.edit().putString(RANGE_KEY, rangeAlerts.toString()).apply();
+
             return Result.success();
         } catch (Exception e) {
             Log.e(TAG, "doWork error", e);
@@ -173,6 +216,36 @@ public class PriceCheckWorker extends Worker {
             ? PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
             : PendingIntent.FLAG_UPDATE_CURRENT;
         PendingIntent pi = PendingIntent.getActivity(ctx, 0, intent, flags);
+
+        NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, CHANNEL)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
+            .setContentIntent(pi)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setVibrate(new long[]{0, 250, 100, 250});
+        try {
+            NotificationManagerCompat.from(ctx)
+                .notify((int)(System.currentTimeMillis() % 100_000), b.build());
+        } catch (SecurityException ignored) {}
+    }
+
+    private void notifyRange(String coinName, double minPrice, double maxPrice, double price, boolean entered, String note) {
+        Context ctx = getApplicationContext();
+        String status = entered ? "↔ Entrato nel range" : "↗ Uscito dal range";
+        String title = status + " — " + coinName;
+        String body = "Range: $" + fmt(minPrice) + " – $" + fmt(maxPrice) + "  ·  Ora: $" + fmt(price);
+        if (note != null && !note.isEmpty()) body += "\n📝 " + note;
+
+        Intent intent = new Intent(ctx, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+            ? PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+            : PendingIntent.FLAG_UPDATE_CURRENT;
+        PendingIntent pi = PendingIntent.getActivity(ctx, 1, intent, flags);
 
         NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
