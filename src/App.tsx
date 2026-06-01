@@ -37,7 +37,7 @@ export default function App() {
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('24h');
   const [page, setPage] = useState(1);
   const [availableUpdate, setAvailableUpdate] = useState<UpdateResult | null>(null);
-  const [updateDismissed, setUpdateDismissed] = useState(false);
+  const [dismissedBuildNum, setDismissedBuildNum] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortBy>('rank');
   const [sortDesc, setSortDesc] = useState(true);
   const lastUpdateCheckRef = useRef<number>(0);
@@ -268,11 +268,11 @@ export default function App() {
             </div>
           )}
 
-          {availableUpdate && !updateDismissed && (
+          {availableUpdate && availableUpdate.buildNumber !== dismissedBuildNum && (
             <UpdateNotification
               update={availableUpdate}
               dlState={dlState}
-              onDismiss={() => setUpdateDismissed(true)}
+              onDismiss={() => setDismissedBuildNum(availableUpdate?.buildNumber ?? '')}
               onDownloadStart={() => setDlState('downloading')}
             />
           )}

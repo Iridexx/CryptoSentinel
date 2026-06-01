@@ -39,6 +39,7 @@ export interface DevBuildInfo {
 export async function checkForUpdates(currentBuildNumber: string): Promise<UpdateResult> {
   const res = await fetch(RELEASES_API, {
     headers: { Accept: 'application/vnd.github+json' },
+    cache: 'no-store',
   });
   if (!res.ok) throw new Error(`GitHub API: ${res.status}`);
   const release = await res.json();
@@ -71,6 +72,7 @@ export async function checkForUpdates(currentBuildNumber: string): Promise<Updat
 export async function getDevBuildInfo(): Promise<DevBuildInfo> {
   const res = await fetch(DEV_RELEASES_API, {
     headers: { Accept: 'application/vnd.github+json' },
+    cache: 'no-store',
   });
   if (!res.ok) throw new Error(`GitHub API: ${res.status}`);
   const release = await res.json();
