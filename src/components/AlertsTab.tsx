@@ -1,6 +1,101 @@
-import { useState, type FC } from 'react';
+import { useState, useRef, useEffect, type FC } from 'react';
 import type { PriceAlert, Coin, AlertDirection, AlertHistoryEntry } from '../types';
 import { hapticMedium, hapticLight } from '../utils/haptics';
+
+// Slider personalizzato con pointer events — aggiornamento DOM diretto durante drag
+// per evitare il jank causato dai re-render React ad ogni frame
+const computeThumbColor = (v: number): string => {
+  const dev = v - 50;
+  if (Math.abs(dev) < 0.4) return '#6b7280';
+  return dev > 0 ? '#22c55e' : '#ef4444';
+};
+
+interface SmoothSliderProps {
+  value: number;       // 0–100
+  onChange: (v: number) => void;
+  markerAt?: number;   // 0–100, linea prezzo corrente
+}
+
+const SmoothSlider: FC<SmoothSliderProps> = ({ value, onChange, markerAt }) => {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLDivElement>(null);
+  const fillRef  = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const rafId    = useRef<number | null>(null);
+  const lastVal  = useRef(value);
+
+  const applyDOM = (v: number) => {
+    const c = computeThumbColor(v);
+    if (thumbRef.current) { thumbRef.current.style.left = `${v}%`; thumbRef.current.style.background = c; }
+    if (fillRef.current)  { fillRef.current.style.width = `${v}%`; fillRef.current.style.background = c; }
+  };
+
+  // Sincronizza React → DOM quando non si sta trascinando
+  useEffect(() => { if (!dragging.current) applyDOM(value); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pxToVal = (clientX: number): number => {
+    const rect = trackRef.current!.getBoundingClientRect();
+    return Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+  };
+
+  const scheduleUpdate = (v: number) => {
+    lastVal.current = v;
+    if (rafId.current !== null) return;
+    rafId.current = requestAnimationFrame(() => { rafId.current = null; onChange(lastVal.current); });
+  };
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    dragging.current = true;
+    trackRef.current!.setPointerCapture(e.pointerId);
+    const v = pxToVal(e.clientX);
+    applyDOM(v);
+    scheduleUpdate(v);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging.current) return;
+    const v = pxToVal(e.clientX);
+    applyDOM(v);
+    scheduleUpdate(v);
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
+    const v = pxToVal(e.clientX);
+    applyDOM(v);
+    onChange(v);
+  };
+
+  const initColor = computeThumbColor(value);
+  return (
+    <div
+      ref={trackRef}
+      className="relative h-8 flex items-center cursor-pointer touch-none select-none"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      <div className="absolute left-0 right-0 h-1.5 bg-dark-600 rounded-full overflow-hidden">
+        <div ref={fillRef} className="h-full rounded-full" style={{ width: `${value}%`, background: initColor }} />
+      </div>
+      {markerAt !== undefined && (
+        <div
+          className="absolute top-1 bottom-1 w-0.5 bg-accent-blue/70 rounded-full pointer-events-none"
+          style={{ left: `${markerAt}%`, transform: 'translateX(-50%)' }}
+        />
+      )}
+      <div
+        ref={thumbRef}
+        className="absolute w-5 h-5 rounded-full shadow-lg pointer-events-none border-2 border-dark-900"
+        style={{ left: `${value}%`, transform: 'translateX(-50%)', background: initColor }}
+      />
+    </div>
+  );
+};
 
 interface Props {
   alerts: PriceAlert[];
@@ -10,6 +105,7 @@ interface Props {
   onEdit: (id: string, threshold: number, direction: AlertDirection, percentChange?: number) => void;
   history: AlertHistoryEntry[];
   onClearHistory: () => void;
+  sliderRange: number;
 }
 
 function formatPrice(price: number): string {
@@ -33,7 +129,7 @@ function parseNum(s: string): number {
   return parseFloat(clean);
 }
 
-const AlertsTab: FC<Props> = ({ alerts, onRemove, onReset, coins, onEdit, history, onClearHistory }) => {
+const AlertsTab: FC<Props> = ({ alerts, onRemove, onReset, coins, onEdit, history, onClearHistory, sliderRange }) => {
   const [showHistory, setShowHistory] = useState(false);
 
   const active = alerts.filter((a) => !a.triggered);
@@ -66,6 +162,7 @@ const AlertsTab: FC<Props> = ({ alerts, onRemove, onReset, coins, onEdit, histor
               onReset={onReset}
               onEdit={onEdit}
               coin={coins.find((c) => c.id === alert.coinId)}
+              sliderRange={sliderRange}
             />
           ))}
         </div>
@@ -84,6 +181,7 @@ const AlertsTab: FC<Props> = ({ alerts, onRemove, onReset, coins, onEdit, histor
               onReset={onReset}
               onEdit={onEdit}
               coin={coins.find((c) => c.id === alert.coinId)}
+              sliderRange={sliderRange}
             />
           ))}
         </div>
@@ -128,9 +226,10 @@ interface AlertRowProps {
   onReset: (id: string) => void;
   onEdit: (id: string, threshold: number, direction: AlertDirection, percentChange?: number) => void;
   coin?: Coin;
+  sliderRange: number;
 }
 
-const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin }) => {
+const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, sliderRange }) => {
   const [editing, setEditing] = useState(false);
   const [sliderValue, setSliderValue] = useState(50);
   const [draftThreshold, setDraftThreshold] = useState(alert.threshold);
@@ -140,8 +239,8 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin })
   const [pctInput, setPctInput] = useState('');
 
   const isAbove = alert.direction === 'above';
-  const sliderMin = alert.threshold * 0.5;
-  const sliderMax = alert.threshold * 1.5;
+  const sliderMin = alert.threshold * (1 - sliderRange / 100);
+  const sliderMax = alert.threshold * (1 + sliderRange / 100);
 
   const thresholdToSlider = (t: number) =>
     Math.max(0, Math.min(100, ((t - sliderMin) / (sliderMax - sliderMin)) * 100));
@@ -193,8 +292,6 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin })
     ? Math.max(0, Math.min(100, ((coin.current_price - sliderMin) / (sliderMax - sliderMin)) * 100))
     : null;
 
-  const deviation = sliderValue - 50;
-  const thumbColor = deviation === 0 ? '#6b7280' : deviation > 0 ? '#22c55e' : '#ef4444';
   const pct = coin ? ((draftThreshold - coin.current_price) / coin.current_price) * 100 : null;
 
   return (
@@ -325,31 +422,15 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin })
           </div>
 
           {/* Slider */}
-          <div className="relative mb-1">
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={0.1}
-              value={sliderValue}
-              onChange={(e) => handleSliderChange(parseFloat(e.target.value))}
-              className="w-full h-1.5 rounded-full outline-none cursor-pointer appearance-none"
-              style={{
-                background: `linear-gradient(to right, ${thumbColor} 0%, ${thumbColor} ${sliderValue}%, #374151 ${sliderValue}%, #374151 100%)`,
-                accentColor: thumbColor,
-              }}
-            />
-            {currentPricePercent !== null && (
-              <div
-                className="absolute top-0 h-full w-px bg-accent-blue/70 rounded-full pointer-events-none"
-                style={{ left: `${currentPricePercent}%`, transform: 'translateX(-50%)' }}
-              />
-            )}
-          </div>
+          <SmoothSlider
+            value={sliderValue}
+            onChange={handleSliderChange}
+            markerAt={currentPricePercent ?? undefined}
+          />
 
-          <div className="flex justify-between text-xs text-gray-600 mb-3 mt-1">
+          <div className="flex justify-between text-xs text-gray-600 mb-3 mt-0.5">
             <span>${formatPrice(sliderMin)}</span>
-            <span className="text-gray-700">−50% · +50%</span>
+            <span className="text-gray-700">−{sliderRange}% · +{sliderRange}%</span>
             <span>${formatPrice(sliderMax)}</span>
           </div>
 

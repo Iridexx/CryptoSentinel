@@ -108,6 +108,8 @@ interface Props {
   onDownloadDone: () => void;
   currency: Currency;
   onCurrencyChange: (c: Currency) => void;
+  sliderRange: number;
+  onSliderRangeChange: (n: number) => void;
 }
 
 const SettingsTab: FC<Props> = ({
@@ -124,6 +126,8 @@ const SettingsTab: FC<Props> = ({
   onDownloadDone,
   currency,
   onCurrencyChange,
+  sliderRange,
+  onSliderRangeChange,
 }) => {
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [updateInfo, setUpdateInfo] = useState<UpdateResult | null>(null);
@@ -379,8 +383,8 @@ const SettingsTab: FC<Props> = ({
       {/* Personalizzazione */}
       <section>
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-1">Personalizzazione</h2>
-        <div className="bg-dark-800 rounded-xl px-4 py-3 space-y-3">
-          <div>
+        <div className="bg-dark-800 rounded-xl divide-y divide-dark-700">
+          <div className="px-4 py-3">
             <p className="text-sm text-white mb-1">Valuta di visualizzazione</p>
             <p className="text-xs text-gray-500 mb-3">Cambia la valuta con cui vengono mostrati prezzi e capitalizzazione</p>
             <div className="flex gap-2">
@@ -393,6 +397,23 @@ const SettingsTab: FC<Props> = ({
                   }`}
                 >
                   {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-sm text-white mb-1">Range slider allarmi</p>
+            <p className="text-xs text-gray-500 mb-3">Variazione massima gestibile dallo slider nella modifica di un allarme</p>
+            <div className="flex gap-2">
+              {([10, 20, 30, 50] as const).map((pct) => (
+                <button
+                  key={pct}
+                  onClick={() => onSliderRangeChange(pct)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    sliderRange === pct ? 'bg-accent-blue text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  ±{pct}%
                 </button>
               ))}
             </div>

@@ -20,6 +20,7 @@ import EnergySavingBanner from './components/EnergySavingBanner';
 import SettingsTab from './components/SettingsTab';
 
 const INTERVAL_KEY = 'cryptosentinel_refresh_interval';
+const SLIDER_RANGE_KEY = 'cryptosentinel_alert_slider_range';
 
 type SortBy = 'rank' | 'change' | '7d' | 'volume' | 'price';
 type TimeFrame = '1h' | '24h' | '7d';
@@ -79,6 +80,15 @@ export default function App() {
   const [refreshInterval, setRefreshInterval] = useState<number>(() => {
     return parseInt(localStorage.getItem(INTERVAL_KEY) || '30000', 10);
   });
+
+  const [sliderRange, setSliderRange] = useState<number>(() => {
+    return parseInt(localStorage.getItem(SLIDER_RANGE_KEY) || '20', 10);
+  });
+
+  const handleSliderRangeChange = useCallback((n: number) => {
+    setSliderRange(n);
+    localStorage.setItem(SLIDER_RANGE_KEY, String(n));
+  }, []);
 
   const { currency, changeCurrency } = useCurrency();
   const { coins, loading, error, lastUpdated, refresh } = useCryptoData(refreshInterval, perPage, page, currency);
@@ -387,7 +397,7 @@ export default function App() {
           )}
 
           {tab === 'alerts' && (
-            <AlertsTab alerts={alerts} onRemove={removeAlert} onReset={resetAlert} coins={coins} onEdit={editAlert} history={history} onClearHistory={clearHistory} />
+            <AlertsTab alerts={alerts} onRemove={removeAlert} onReset={resetAlert} coins={coins} onEdit={editAlert} history={history} onClearHistory={clearHistory} sliderRange={sliderRange} />
           )}
 
           {tab === 'settings' && (
@@ -406,6 +416,8 @@ export default function App() {
               onDownloadDone={() => setDlState('done')}
               currency={currency}
               onCurrencyChange={changeCurrency}
+              sliderRange={sliderRange}
+              onSliderRangeChange={handleSliderRangeChange}
             />
           )}
         </div>
