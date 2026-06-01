@@ -3,6 +3,7 @@ import type { Coin } from './types';
 import { useCryptoData } from './hooks/useCryptoData';
 import { useFavorites } from './hooks/useFavorites';
 import { useAlerts } from './hooks/useAlerts';
+import { useRangeAlerts } from './hooks/useRangeAlerts';
 import { useCurrency } from './hooks/useCurrency';
 import { getNotificationPermission, initNotifications } from './utils/notifications';
 import { isBatteryBannerDismissed } from './utils/energySaving';
@@ -95,6 +96,7 @@ export default function App() {
   const { results: searchResults, searching } = useSearch(search, currency);
   const { favorites, toggle: toggleFavorite, isFavorite, clear: clearFavorites } = useFavorites();
   const { alerts, addAlert, removeAlert, resetAlert, editAlert, clearAlerts, history, clearHistory } = useAlerts(coins);
+  const { rangeAlerts, addRangeAlert, removeRangeAlert, editRangeAlert } = useRangeAlerts(coins);
 
   const [refreshFlash, setRefreshFlash] = useState(false);
 
@@ -175,6 +177,22 @@ export default function App() {
       });
     },
     [selectedCoin, addAlert]
+  );
+
+  const handleConfirmRange = useCallback(
+    (minPrice: number, maxPrice: number, note?: string) => {
+      if (!selectedCoin) return;
+      addRangeAlert({
+        coinId: selectedCoin.id,
+        coinName: selectedCoin.name,
+        coinSymbol: selectedCoin.symbol,
+        coinImage: selectedCoin.image,
+        minPrice,
+        maxPrice,
+        note,
+      });
+    },
+    [selectedCoin, addRangeAlert]
   );
 
   const triggeredCount = alerts.filter((a) => a.triggered).length;
@@ -398,7 +416,7 @@ export default function App() {
           )}
 
           {tab === 'alerts' && (
-            <AlertsTab alerts={alerts} onRemove={removeAlert} onReset={resetAlert} coins={coins} onEdit={editAlert} history={history} onClearHistory={clearHistory} sliderRange={sliderRange} />
+            <AlertsTab alerts={alerts} onRemove={removeAlert} onReset={resetAlert} coins={coins} onEdit={editAlert} history={history} onClearHistory={clearHistory} sliderRange={sliderRange} rangeAlerts={rangeAlerts} onRemoveRange={removeRangeAlert} onEditRange={editRangeAlert} />
           )}
 
           {tab === 'settings' && (
@@ -435,6 +453,7 @@ export default function App() {
         <AlertModal
           coin={selectedCoin}
           onConfirm={handleConfirmAlert}
+          onConfirmRange={handleConfirmRange}
           onClose={() => setSelectedCoin(null)}
         />
       )}
