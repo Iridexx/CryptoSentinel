@@ -117,6 +117,24 @@ public class AppSettingsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void getRangeAlerts(PluginCall call) {
+        String json = getContext()
+            .getSharedPreferences("cryptosentinel_prefs", android.content.Context.MODE_PRIVATE)
+            .getString("range_alerts_json", "[]");
+        JSObject result = new JSObject();
+        result.put("json", json);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void syncRangeAlerts(PluginCall call) {
+        String json = call.getString("json", "[]");
+        getContext().getSharedPreferences("cryptosentinel_prefs", android.content.Context.MODE_PRIVATE)
+            .edit().putString("range_alerts_json", json).apply();
+        call.resolve();
+    }
+
+    @PluginMethod
     public void scheduleImmediateCheck(PluginCall call) {
         PriceCheckWorker.scheduleImmediate(getContext());
         call.resolve();
