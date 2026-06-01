@@ -71,7 +71,7 @@ const UpdateNotification: FC<Props> = ({ update, dlState, onDismiss, onDownloadS
           onClick={dlState === 'done' ? handleDismissDone : () => setShowModal(false)}
         >
           <div
-            className="bg-dark-800 rounded-2xl w-full max-w-sm p-5 shadow-2xl border border-dark-600"
+            className="bg-dark-800 rounded-2xl w-full max-w-sm p-5 shadow-2xl border border-dark-600 flex flex-col max-h-[85vh]"
             onClick={(e) => e.stopPropagation()}
           >
             {dlState === 'done' ? (
@@ -142,11 +142,13 @@ const UpdateNotification: FC<Props> = ({ update, dlState, onDismiss, onDownloadS
                 </div>
 
                 {update.releaseNotes && (
-                  <div className="mb-4">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Note di rilascio</p>
-                    <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-line">
-                      {update.releaseNotes}
-                    </p>
+                  <div className="mb-4 flex flex-col min-h-0">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex-shrink-0">Note di rilascio</p>
+                    <div className="overflow-y-auto max-h-40">
+                      <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-line">
+                        {update.releaseNotes}
+                      </p>
+                    </div>
                   </div>
                 )}
 
