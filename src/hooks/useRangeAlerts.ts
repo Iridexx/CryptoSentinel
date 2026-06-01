@@ -113,7 +113,15 @@ export function useRangeAlerts(coins: Coin[]) {
       const isInside = price >= alert.minPrice && price <= alert.maxPrice;
 
       if (alert.isInsideRange === null) {
-        toUpdate.push({ id: alert.id, updates: { isInsideRange: isInside } });
+        // Alert appena creato: se il prezzo è già fuori range, notifica subito
+        const isNew = Date.now() - alert.createdAt < 10 * 60 * 1000;
+        if (!isInside && isNew) {
+          const cooldownOk = alert.lastNotifiedAt === null || now - alert.lastNotifiedAt >= COOLDOWN_MS;
+          toUpdate.push({ id: alert.id, updates: { isInsideRange: false, ...(cooldownOk ? { lastNotifiedAt: now } : {}) } });
+          if (cooldownOk) toNotify.push({ alert, entered: false, price });
+        } else {
+          toUpdate.push({ id: alert.id, updates: { isInsideRange: isInside } });
+        }
         continue;
       }
 

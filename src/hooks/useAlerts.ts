@@ -122,10 +122,15 @@ export function useAlerts(coins: Coin[]) {
       const price = coin.current_price;
       const prevPrice = prevPrices.get(coin.id);
 
-      // Scatta solo se il prezzo attraversa la soglia (crossing detection)
-      const fires =
+      const conditionMet =
+        (alert.direction === 'above' && price >= alert.threshold) ||
+        (alert.direction === 'below' && price <= alert.threshold);
+      const crossed =
         (alert.direction === 'above' && prevPrice !== undefined && prevPrice < alert.threshold && price >= alert.threshold) ||
         (alert.direction === 'below' && prevPrice !== undefined && prevPrice > alert.threshold && price <= alert.threshold);
+      // Scatta anche se l'alert è appena stato creato e il prezzo è già oltre la soglia
+      const isNew = Date.now() - alert.createdAt < 10 * 60 * 1000;
+      const fires = crossed || (isNew && conditionMet);
 
       if (fires) {
         lastTriggeredRef.current.add(alert.id);
