@@ -18,6 +18,21 @@ function formatPrice(price: number): string {
   return price.toFixed(6);
 }
 
+function parseNum(s: string): number {
+  let clean = s.trim().replace(/[^\d.,-]/g, '');
+  const lastDot = clean.lastIndexOf('.');
+  const lastComma = clean.lastIndexOf(',');
+  if (lastDot !== -1 && lastComma !== -1) {
+    clean = lastComma > lastDot
+      ? clean.replace(/\./g, '').replace(',', '.')
+      : clean.replace(/,/g, '');
+  } else if (lastComma !== -1) {
+    const after = clean.slice(lastComma + 1);
+    clean = after.length === 3 ? clean.replace(',', '') : clean.replace(',', '.');
+  }
+  return parseFloat(clean);
+}
+
 const AlertsTab: FC<Props> = ({ alerts, onRemove, onReset, coins, onEdit, history, onClearHistory }) => {
   const [showHistory, setShowHistory] = useState(false);
 
@@ -120,25 +135,37 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin })
   const [sliderValue, setSliderValue] = useState(50);
   const [draftThreshold, setDraftThreshold] = useState(alert.threshold);
   const [draftDirection, setDraftDirection] = useState<AlertDirection>(alert.direction);
+  const [editField, setEditField] = useState<'price' | 'percent' | null>(null);
+  const [priceInput, setPriceInput] = useState('');
+  const [pctInput, setPctInput] = useState('');
 
   const isAbove = alert.direction === 'above';
   const sliderMin = alert.threshold * 0.5;
   const sliderMax = alert.threshold * 1.5;
 
+  const thresholdToSlider = (t: number) =>
+    Math.max(0, Math.min(100, ((t - sliderMin) / (sliderMax - sliderMin)) * 100));
+
+  const applyNewThreshold = (t: number) => {
+    setDraftThreshold(t);
+    setSliderValue(thresholdToSlider(t));
+    if (coin) setDraftDirection(t >= coin.current_price ? 'above' : 'below');
+  };
+
   const handleOpenEdit = () => {
     setSliderValue(50);
     setDraftThreshold(alert.threshold);
     setDraftDirection(alert.direction);
+    setEditField(null);
     setEditing(true);
   };
 
   const handleSliderChange = (val: number) => {
+    setEditField(null);
     setSliderValue(val);
     const newThreshold = sliderMin + (val / 100) * (sliderMax - sliderMin);
     setDraftThreshold(newThreshold);
-    if (coin) {
-      setDraftDirection(newThreshold >= coin.current_price ? 'above' : 'below');
-    }
+    if (coin) setDraftDirection(newThreshold >= coin.current_price ? 'above' : 'below');
   };
 
   const handleSave = () => {
@@ -149,12 +176,26 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin })
     setEditing(false);
   };
 
+  const openPriceField = () => {
+    const raw = draftThreshold >= 1000
+      ? String(Math.round(draftThreshold))
+      : draftThreshold >= 1 ? draftThreshold.toFixed(2) : draftThreshold.toFixed(6);
+    setPriceInput(raw);
+    setEditField('price');
+  };
+
+  const openPctField = (pct: number) => {
+    setPctInput(Math.abs(pct).toFixed(2));
+    setEditField('percent');
+  };
+
   const currentPricePercent = coin
     ? Math.max(0, Math.min(100, ((coin.current_price - sliderMin) / (sliderMax - sliderMin)) * 100))
     : null;
 
   const deviation = sliderValue - 50;
   const thumbColor = deviation === 0 ? '#6b7280' : deviation > 0 ? '#22c55e' : '#ef4444';
+  const pct = coin ? ((draftThreshold - coin.current_price) / coin.current_price) * 100 : null;
 
   return (
     <div className={`rounded-xl mb-2 border overflow-hidden transition-all ${
@@ -182,52 +223,108 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin })
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-          {!editing && (
-            <span className="text-gray-600 text-xs mr-1">✏️</span>
-          )}
+          {!editing && <span className="text-gray-600 text-xs mr-1">✏️</span>}
           {alert.triggered && (
             <button
               onClick={() => { hapticLight(); onReset(alert.id); }}
               className="text-xs px-2 py-1 rounded-lg bg-dark-600 text-gray-300 hover:bg-dark-500 transition-colors"
               aria-label="Riattiva allarme"
-            >
-              ↺
-            </button>
+            >↺</button>
           )}
           <button
             onClick={() => { hapticMedium(); onRemove(alert.id); }}
             className="text-xs px-2 py-1 rounded-lg bg-accent-red/10 text-accent-red hover:bg-accent-red/20 transition-colors"
             aria-label="Elimina allarme"
-          >
-            ✕
-          </button>
+          >✕</button>
         </div>
       </div>
 
       {editing && (
         <div className="px-3 pb-3 border-t border-dark-600">
+          {/* Riga prezzo + % — entrambi toccabili per inserimento diretto */}
           <div className="flex items-center justify-between pt-2.5 pb-2">
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-bold tabular-nums ${draftDirection === 'above' ? 'text-accent-green' : 'text-accent-red'}`}>
-                {draftDirection === 'above' ? '▲' : '▼'} ${formatPrice(draftThreshold)}
-              </span>
-              {coin && (() => {
-                const pct = ((draftThreshold - coin.current_price) / coin.current_price) * 100;
-                const sign = pct >= 0 ? '+' : '';
-                return (
-                  <span className={`text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded-full ${pct >= 0 ? 'text-accent-green bg-accent-green/10' : 'text-accent-red bg-accent-red/10'}`}>
-                    {sign}{pct.toFixed(2)}%
+            <div className="flex items-center gap-2 flex-wrap">
+
+              {/* Prezzo soglia */}
+              {editField === 'price' ? (
+                <div className={`flex items-center gap-0.5 rounded-lg px-2 py-1 border border-accent-blue bg-dark-700`}>
+                  <span className={`text-sm font-bold ${draftDirection === 'above' ? 'text-accent-green' : 'text-accent-red'}`}>
+                    {draftDirection === 'above' ? '▲' : '▼'}&nbsp;$
                   </span>
-                );
-              })()}
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={priceInput}
+                    onChange={e => {
+                      setPriceInput(e.target.value);
+                      const num = parseNum(e.target.value);
+                      if (!isNaN(num) && num > 0) applyNewThreshold(num);
+                    }}
+                    onBlur={() => setEditField(null)}
+                    onKeyDown={e => (e.key === 'Enter' || e.key === 'Escape') && setEditField(null)}
+                    autoFocus
+                    className="bg-transparent text-white w-24 text-sm font-bold tabular-nums outline-none"
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={openPriceField}
+                  className={`flex items-center gap-1 text-sm font-bold tabular-nums hover:opacity-70 transition-opacity ${
+                    draftDirection === 'above' ? 'text-accent-green' : 'text-accent-red'
+                  }`}
+                >
+                  {draftDirection === 'above' ? '▲' : '▼'}&nbsp;${formatPrice(draftThreshold)}
+                  <span className="text-gray-500 text-xs">✎</span>
+                </button>
+              )}
+
+              {/* Badge percentuale */}
+              {coin && pct !== null && (
+                editField === 'percent' ? (
+                  <div className="flex items-center rounded-lg px-2 py-1 border border-accent-blue bg-dark-700">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={pctInput}
+                      onChange={e => {
+                        setPctInput(e.target.value);
+                        const num = parseFloat(e.target.value.replace(',', '.'));
+                        if (!isNaN(num) && num > 0) {
+                          const newT = draftDirection === 'above'
+                            ? coin.current_price * (1 + num / 100)
+                            : coin.current_price * (1 - num / 100);
+                          applyNewThreshold(newT);
+                        }
+                      }}
+                      onBlur={() => setEditField(null)}
+                      onKeyDown={e => (e.key === 'Enter' || e.key === 'Escape') && setEditField(null)}
+                      autoFocus
+                      className="bg-transparent text-white w-14 text-xs font-semibold tabular-nums outline-none text-right"
+                    />
+                    <span className={`text-xs ml-0.5 ${pct >= 0 ? 'text-accent-green' : 'text-accent-red'}`}>%</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => openPctField(pct)}
+                    className={`flex items-center gap-0.5 text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded-full hover:opacity-70 transition-opacity ${
+                      pct >= 0 ? 'text-accent-green bg-accent-green/10' : 'text-accent-red bg-accent-red/10'
+                    }`}
+                  >
+                    {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
+                    <span className="text-gray-500 text-xs">✎</span>
+                  </button>
+                )
+              )}
             </div>
+
             {coin && (
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-500 flex-shrink-0">
                 Ora: <span className="text-gray-300 font-medium">${formatPrice(coin.current_price)}</span>
               </span>
             )}
           </div>
 
+          {/* Slider */}
           <div className="relative mb-1">
             <input
               type="range"
@@ -260,15 +357,11 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin })
             <button
               onClick={() => setEditing(false)}
               className="flex-1 py-2 bg-dark-700 text-gray-400 text-sm rounded-lg hover:bg-dark-600 transition-colors"
-            >
-              Annulla
-            </button>
+            >Annulla</button>
             <button
               onClick={handleSave}
               className="flex-1 py-2 bg-accent-blue text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity"
-            >
-              Salva
-            </button>
+            >Salva</button>
           </div>
         </div>
       )}
