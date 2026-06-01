@@ -1,10 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { Coin, PriceAlert, AlertDirection } from '../types';
+import type { Coin, PriceAlert, AlertDirection, AlertHistoryEntry } from '../types';
 import { sendAlertNotification } from '../utils/notifications';
 import { playAlertBeep } from '../utils/audio';
-import { syncAlertsToNative } from '../utils/update';
+import { syncAlertsToNative, getAlertsFromNative } from '../utils/update';
 
 const STORAGE_KEY = 'cryptosentinel_alerts';
+const HISTORY_KEY = 'cryptosentinel_alert_history';
+const MAX_HISTORY = 50;
 
 function loadAlerts(): PriceAlert[] {
   try {
@@ -23,10 +25,27 @@ function saveAlerts(alerts: PriceAlert[]) {
   syncAlertsToNative(alerts);
 }
 
+function loadHistory(): AlertHistoryEntry[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as AlertHistoryEntry[];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(history: AlertHistoryEntry[]) {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  } catch { /* quota */ }
+}
+
 export function useAlerts(coins: Coin[]) {
   const [alerts, setAlerts] = useState<PriceAlert[]>(loadAlerts);
+  const [history, setHistory] = useState<AlertHistoryEntry[]>(loadHistory);
   const lastTriggeredRef = useRef<Set<string>>(new Set());
-  // Ref per accedere sempre agli alert più recenti senza dipendenze stale
+  const prevPricesRef = useRef<Map<string, number>>(new Map());
   const alertsRef = useRef<PriceAlert[]>(alerts);
   alertsRef.current = alerts;
 
@@ -62,13 +81,37 @@ export function useAlerts(coins: Coin[]) {
     });
   }, []);
 
+  // Al mount: legge lo stato triggered dal worker nativo e aggiorna React
+  useEffect(() => {
+    getAlertsFromNative().then(nativeJson => {
+      if (!nativeJson) return;
+      try {
+        const nativeAlerts = JSON.parse(nativeJson) as Array<{ id: string; triggered?: boolean }>;
+        const triggeredIds = new Set(nativeAlerts.filter(a => a.triggered).map(a => a.id));
+        if (triggeredIds.size === 0) return;
+        setAlerts(prev => {
+          const needsUpdate = prev.some(a => triggeredIds.has(a.id) && !a.triggered);
+          if (!needsUpdate) return prev;
+          const next = prev.map(a => triggeredIds.has(a.id) ? { ...a, triggered: true } : a);
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+          return next;
+        });
+      } catch {}
+    });
+  }, []);
+
   useEffect(() => {
     if (coins.length === 0) return;
 
-    // Calcola toFire PRIMA di setAlerts usando il ref (non la closure stale)
-    // Il problema precedente: toFire era popolato dentro l'updater di setAlerts
-    // che React esegue in modo asincrono — quando il controllo avveniva, toFire era vuoto
-    type FireItem = { coinName: string; direction: 'above' | 'below'; threshold: number; currentPrice: number };
+    const prevPrices = prevPricesRef.current;
+
+    // Prima lettura: popola i prezzi senza sparare (evita notifiche all'apertura app)
+    if (prevPrices.size === 0) {
+      coins.forEach(c => prevPrices.set(c.id, c.current_price));
+      return;
+    }
+
+    type FireItem = { alert: PriceAlert; coinName: string; direction: 'above' | 'below'; threshold: number; currentPrice: number; note?: string };
     const toFire: FireItem[] = [];
     const toTriggerIds = new Set<string>();
 
@@ -77,32 +120,81 @@ export function useAlerts(coins: Coin[]) {
       if (!coin || alert.triggered || lastTriggeredRef.current.has(alert.id)) continue;
 
       const price = coin.current_price;
+      const prevPrice = prevPrices.get(coin.id);
+
+      // Scatta solo se il prezzo attraversa la soglia (crossing detection)
       const fires =
-        (alert.direction === 'above' && price >= alert.threshold) ||
-        (alert.direction === 'below' && price <= alert.threshold);
+        (alert.direction === 'above' && prevPrice !== undefined && prevPrice < alert.threshold && price >= alert.threshold) ||
+        (alert.direction === 'below' && prevPrice !== undefined && prevPrice > alert.threshold && price <= alert.threshold);
 
       if (fires) {
         lastTriggeredRef.current.add(alert.id);
         toTriggerIds.add(alert.id);
-        toFire.push({ coinName: alert.coinName, direction: alert.direction, threshold: alert.threshold, currentPrice: price });
+        toFire.push({ alert, coinName: alert.coinName, direction: alert.direction, threshold: alert.threshold, currentPrice: price, note: alert.note });
       }
     }
 
+    // Aggiorna i prezzi precedenti
+    coins.forEach(c => prevPrices.set(c.id, c.current_price));
+
     if (toFire.length === 0) return;
 
-    setAlerts((prev) => {
-      const next = prev.map((a) => toTriggerIds.has(a.id) ? { ...a, triggered: true } : a);
-      saveAlerts(next);
-      return next;
-    });
+    // Controlla se il worker nativo ha già sparato per questi alert (evita doppioni)
+    let alive = true;
+    const fire = async () => {
+      const nativeJson = await getAlertsFromNative();
+      if (!alive) return;
 
-    playAlertBeep();
-    toFire.forEach((params) => sendAlertNotification(params));
+      const nativeTriggered = new Set<string>();
+      if (nativeJson) {
+        try {
+          (JSON.parse(nativeJson) as Array<{ id: string; triggered?: boolean }>)
+            .filter(a => a.triggered)
+            .forEach(a => nativeTriggered.add(a.id));
+        } catch {}
+      }
+
+      // Segna tutti come triggered in React (anche quelli gestiti dal worker)
+      setAlerts((prev) => {
+        const next = prev.map((a) => toTriggerIds.has(a.id) ? { ...a, triggered: true } : a);
+        saveAlerts(next);
+        return next;
+      });
+
+      // Storico per tutti i crossing rilevati dal JS
+      const now = Date.now();
+      const newEntries: AlertHistoryEntry[] = toFire.map(({ alert, currentPrice }) => ({
+        id: `${now}-${alert.id}`,
+        coinId: alert.coinId,
+        coinName: alert.coinName,
+        coinSymbol: alert.coinSymbol,
+        coinImage: alert.coinImage,
+        direction: alert.direction,
+        threshold: alert.threshold,
+        triggeredPrice: currentPrice,
+        triggeredAt: now,
+      }));
+      setHistory((prev) => {
+        const next = [...newEntries, ...prev].slice(0, MAX_HISTORY);
+        saveHistory(next);
+        return next;
+      });
+
+      // Notifica solo per alert che il worker NON ha già gestito
+      const filtered = toFire.filter(({ alert }) => !nativeTriggered.has(alert.id));
+      if (filtered.length === 0) return;
+
+      playAlertBeep();
+      filtered.forEach((params) => sendAlertNotification(params));
+    };
+
+    fire();
+    return () => { alive = false; };
   }, [coins]);
 
-  const editAlert = useCallback((id: string, threshold: number, direction: AlertDirection) => {
+  const editAlert = useCallback((id: string, threshold: number, direction: AlertDirection, percentChange?: number, note?: string) => {
     setAlerts((prev) => {
-      const next = prev.map((a) => a.id === id ? { ...a, threshold, direction, triggered: false } : a);
+      const next = prev.map((a) => a.id === id ? { ...a, threshold, direction, percentChange, note: note !== undefined ? note : a.note, triggered: false } : a);
       saveAlerts(next);
       return next;
     });
@@ -116,12 +208,10 @@ export function useAlerts(coins: Coin[]) {
     lastTriggeredRef.current.clear();
   }, []);
 
-  // Sync su mount: garantisce che SharedPreferences sia sempre aggiornato
-  // (es. dopo reinstallazione, reboot, o cancellazione dati)
-  useEffect(() => {
-    const initial = loadAlerts();
-    if (initial.length > 0) syncAlertsToNative(initial);
+  const clearHistory = useCallback(() => {
+    setHistory([]);
+    localStorage.removeItem(HISTORY_KEY);
   }, []);
 
-  return { alerts, addAlert, removeAlert, resetAlert, editAlert, clearAlerts };
+  return { alerts, addAlert, removeAlert, resetAlert, editAlert, clearAlerts, history, clearHistory };
 }

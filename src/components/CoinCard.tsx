@@ -1,6 +1,7 @@
-import type { FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import type { Coin } from '../types';
 import type { Currency } from '../hooks/useCurrency';
+import { hapticMedium, hapticLight } from '../utils/haptics';
 
 const SYMBOL: Record<Currency, string> = { usd: '$', eur: '€', btc: '₿' };
 
@@ -27,21 +28,42 @@ function formatMarketCap(val: number, currency: Currency): string {
   return `${sym}${val.toLocaleString('it-IT')}`;
 }
 
+type TimeFrame = '1h' | '24h' | '7d';
+
 interface Props {
   coin: Coin;
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
   onAddAlert: (coin: Coin) => void;
   currency: Currency;
+  showVolume?: boolean;
+  timeFrame?: TimeFrame;
 }
 
-const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, currency }) => {
-  const isPositive = coin.price_change_percentage_24h >= 0;
+const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, currency, showVolume, timeFrame = '24h' }) => {
+  const displayChange =
+    timeFrame === '1h' ? (coin.price_change_percentage_1h_in_currency ?? coin.price_change_percentage_24h) :
+    timeFrame === '7d' ? (coin.price_change_percentage_7d_in_currency ?? coin.price_change_percentage_24h) :
+    coin.price_change_percentage_24h;
+  const isPositive = displayChange >= 0;
   const sym = SYMBOL[currency];
+
+  // Flash verde/rosso quando il prezzo cambia rispetto al dato precedente
+  const prevPriceRef = useRef(coin.current_price);
+  const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+
+  useEffect(() => {
+    const prev = prevPriceRef.current;
+    if (prev === coin.current_price) return;
+    prevPriceRef.current = coin.current_price;
+    setFlash(coin.current_price > prev ? 'up' : 'down');
+    const t = setTimeout(() => setFlash(null), 800);
+    return () => clearTimeout(t);
+  }, [coin.current_price]);
 
   return (
     <div className="flex items-center gap-3 bg-dark-800 rounded-xl p-3 hover:bg-dark-700 transition-colors">
-      <span className="text-xs text-gray-600 font-mono w-6 text-right flex-shrink-0 tabular-nums">
+      <span className="text-xs text-white font-mono w-6 text-right flex-shrink-0 tabular-nums">
         {coin.market_cap_rank ?? '—'}
       </span>
       <img src={coin.image} alt={coin.name} className="w-9 h-9 rounded-full flex-shrink-0" loading="lazy" />
@@ -49,30 +71,39 @@ const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, c
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1">
           <span className="font-semibold text-sm text-white truncate">{coin.name}</span>
-          <span className="text-xs text-gray-500 uppercase flex-shrink-0">{coin.symbol}</span>
+          <span className="text-xs text-gray-400 uppercase flex-shrink-0">{coin.symbol}</span>
         </div>
-        <div className="text-xs text-gray-500 mt-0.5">
-          Cap: {formatMarketCap(coin.market_cap, currency)}
+        <div className="text-xs text-gray-400 mt-0.5">
+          {showVolume
+            ? `Vol: ${formatMarketCap(coin.total_volume, currency)}`
+            : `Cap: ${formatMarketCap(coin.market_cap, currency)}`}
         </div>
       </div>
 
       <div className="text-right flex-shrink-0">
-        <div className="font-bold text-sm text-white">{sym}{formatPrice(coin.current_price, currency)}</div>
+        <div className={`font-bold text-sm transition-colors duration-300 ${
+          flash === 'up' ? 'text-accent-green' :
+          flash === 'down' ? 'text-accent-red' :
+          'text-white'
+        }`}>
+          {sym}{formatPrice(coin.current_price, currency)}
+        </div>
         <div className={`text-xs font-medium mt-0.5 ${isPositive ? 'text-accent-green' : 'text-accent-red'}`}>
-          {isPositive ? '▲' : '▼'} {Math.abs(coin.price_change_percentage_24h).toFixed(2)}%
+          {isPositive ? '▲' : '▼'} {Math.abs(displayChange).toFixed(2)}%
+          {timeFrame !== '24h' && <span className="text-gray-600 ml-0.5">{timeFrame === '1h' ? '1h' : '7g'}</span>}
         </div>
       </div>
 
       <div className="flex flex-col gap-1 flex-shrink-0 ml-1">
         <button
-          onClick={() => onToggleFavorite(coin.id)}
+          onClick={() => { hapticMedium(); onToggleFavorite(coin.id); }}
           className={`text-lg leading-none transition-transform active:scale-75 ${isFavorite ? 'text-accent-yellow' : 'text-gray-600 hover:text-gray-400'}`}
           aria-label={isFavorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
         >
           ★
         </button>
         <button
-          onClick={() => onAddAlert(coin)}
+          onClick={() => { hapticLight(); onAddAlert(coin); }}
           className="text-lg leading-none text-gray-600 hover:text-accent-blue transition-colors active:scale-75"
           aria-label="Imposta allarme"
         >

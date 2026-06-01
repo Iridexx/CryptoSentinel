@@ -2,7 +2,9 @@ package com.cryptosentinel.app;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.util.Log;
@@ -117,7 +119,7 @@ public class PriceCheckWorker extends Worker {
                 if (fire) {
                     a.put("triggered", true);
                     changed = true;
-                    notify(a.optString("coinName"), dir, threshold, price);
+                    notify(a.optString("coinName"), dir, threshold, price, a.optString("note", null));
                 }
             }
             if (changed) prefs.edit().putString(KEY, alerts.toString()).apply();
@@ -157,20 +159,34 @@ public class PriceCheckWorker extends Worker {
         }
     }
 
-    private void notify(String coinName, String dir, double threshold, double price) {
-        String label = dir.equals("above") ? "sopra" : "sotto";
-        String body  = "Prezzo " + label + " $" + fmt(threshold) + " · Ora: $" + fmt(price);
-        NotificationCompat.Builder b = new NotificationCompat.Builder(getApplicationContext(), CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("🚨 " + coinName)
+    private void notify(String coinName, String dir, double threshold, double price, String note) {
+        Context ctx = getApplicationContext();
+        String arrow = dir.equals("above") ? "▲" : "▼";
+        String label = dir.equals("above") ? "superato al rialzo" : "superato al ribasso";
+        String title = arrow + " " + coinName + " — soglia " + label;
+        String body  = "Soglia: $" + fmt(threshold) + "  ·  Prezzo attuale: $" + fmt(price);
+        if (note != null && !note.isEmpty()) body += "\n📝 " + note;
+
+        Intent intent = new Intent(ctx, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+            ? PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+            : PendingIntent.FLAG_UPDATE_CURRENT;
+        PendingIntent pi = PendingIntent.getActivity(ctx, 0, intent, flags);
+
+        NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, CHANNEL)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
             .setContentText(body)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
+            .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
             .setVibrate(new long[]{0, 250, 100, 250});
         try {
-            NotificationManagerCompat.from(getApplicationContext())
-                .notify((int)(System.currentTimeMillis() % Integer.MAX_VALUE), b.build());
+            NotificationManagerCompat.from(ctx)
+                .notify((int)(System.currentTimeMillis() % 100_000), b.build());
         } catch (SecurityException ignored) {}
     }
 

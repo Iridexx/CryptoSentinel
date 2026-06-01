@@ -4,7 +4,7 @@ import type { Coin } from '../types';
 const CACHE_KEY = 'cryptosentinel_coins_cache';
 
 function buildUrl(perPage: 50 | 100, page: number, currency: string): string {
-  return `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency}&order=market_cap_desc&per_page=${perPage}&page=${page}&sparkline=false&price_change_percentage=24h`;
+  return `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency}&order=market_cap_desc&per_page=${perPage}&page=${page}&sparkline=false&price_change_percentage=1h,24h,7d`;
 }
 
 function loadCachedCoins(): Coin[] {
@@ -23,6 +23,7 @@ export function useCryptoData(intervalMs = 30_000, perPage: 50 | 100 = 50, page 
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchCoins = useCallback(async () => {
     abortRef.current?.abort();
@@ -45,15 +46,26 @@ export function useCryptoData(intervalMs = 30_000, perPage: 50 | 100 = 50, page 
     }
   }, [perPage, page, currency]);
 
+  // Manual refresh: reset the auto-refresh timer first to prevent it from
+  // aborting the in-flight fetch immediately after this call.
+  const refresh = useCallback(async () => {
+    if (timerRef.current !== null) {
+      clearInterval(timerRef.current);
+      timerRef.current = setInterval(fetchCoins, intervalMs);
+    }
+    await fetchCoins();
+  }, [fetchCoins, intervalMs]);
+
   useEffect(() => {
     setLoading(true);
     fetchCoins();
-    const timer = setInterval(fetchCoins, intervalMs);
+    timerRef.current = setInterval(fetchCoins, intervalMs);
     return () => {
-      clearInterval(timer);
+      if (timerRef.current !== null) clearInterval(timerRef.current);
+      timerRef.current = null;
       abortRef.current?.abort();
     };
   }, [fetchCoins, intervalMs]);
 
-  return { coins, loading, error, lastUpdated, refresh: fetchCoins };
+  return { coins, loading, error, lastUpdated, refresh };
 }

@@ -6,8 +6,10 @@ on:
       - claude/crypto-price-monitor-app-RpMFm
       - claude/gradlew-missing-build-pYXQT
       - claude/energy-saving-toggle-AsdD9
+      - claude/fix-001-muQ1X
       - Fix_001
       - main
+      - release/**
   workflow_dispatch:
 
 jobs:
@@ -73,7 +75,22 @@ jobs:
           sleep 3
           gh release create latest \
             --title "CryptoSentinel v1.0.${{ github.run_number }}" \
-            --notes "Aggiornamento automatico del $(date '+%d/%m/%Y alle %H:%M')" \
+            --notes "$(cat <<'NOTES'
+Novità di questa versione:
+
+• Pull-to-refresh — trascina verso il basso per aggiornare i prezzi
+• Flash prezzo verde/rosso quando i valori cambiano dopo l'aggiornamento
+• Timeframe 1h / 24h / 7g per le variazioni di prezzo
+• Ordinamento lista per rank, variazione %, volume, prezzo
+• Feedback aptico su tap preferiti, allarmi, ordinamento e pull-to-refresh
+• Notifiche corrette — nessun duplicato, nessun falso all'apertura app
+• Icona notifica dedicata nella barra di stato; tap apre direttamente l'app
+• Modifica allarme con input diretto prezzo o percentuale (oltre allo slider)
+• Slider allarmi fluido (pointer events, zero jank) centrato sul prezzo di mercato
+• Impostazione range variazione slider in Impostazioni (±5% ±10% ±20% ±30% ±50%)
+• Note personalizzate per ogni allarme — visibili nella notifica e nell'elenco
+NOTES
+)" \
             --latest \
             CryptoSentinel-debug.apk
 
