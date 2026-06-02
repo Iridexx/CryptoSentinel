@@ -260,21 +260,22 @@ export default function App() {
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
-      refresh();
       getAndClearPendingFavAlerts().then(json => {
         try {
           const pending: FavAlertData[] = JSON.parse(json);
-          if (pending.length === 0) return;
-          const refMap: Record<string, number> = JSON.parse(
-            localStorage.getItem('cs_fav_ref_prices') ?? '{}'
-          );
-          for (const a of pending) {
-            bumpRefPriceRef.current(a.coinId, a.currentPrice);
-            refMap[a.coinId] = a.currentPrice;
-            handleFavAlert(a);
+          if (pending.length > 0) {
+            const refMap: Record<string, number> = JSON.parse(
+              localStorage.getItem('cs_fav_ref_prices') ?? '{}'
+            );
+            for (const a of pending) {
+              bumpRefPriceRef.current(a.coinId, a.currentPrice);
+              refMap[a.coinId] = a.currentPrice;
+              handleFavAlert(a);
+            }
+            localStorage.setItem('cs_fav_ref_prices', JSON.stringify(refMap));
           }
-          localStorage.setItem('cs_fav_ref_prices', JSON.stringify(refMap));
         } catch { /* ignore */ }
+        refresh();
       });
     };
     document.addEventListener('visibilitychange', onVisible);
