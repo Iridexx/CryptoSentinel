@@ -683,6 +683,7 @@ export default function App() {
         <FavMovePopup
           alert={selectedFavAlert}
           currency={currency}
+          onClose={() => setSelectedFavAlert(null)}
           onDismiss={() => handleDismissFavAlert(selectedFavAlert.coinId)}
         />
       )}
