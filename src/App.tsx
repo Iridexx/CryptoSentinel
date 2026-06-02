@@ -47,6 +47,7 @@ export default function App() {
   const [sortDesc, setSortDesc] = useState(true);
   const lastUpdateCheckRef = useRef<number>(0);
   const favSyncRef = useRef({ coinsJson: '[]', upPct: 0, downPct: 0, refPricesJson: '{}', currency: 'usd' });
+  const bumpRefPriceRef = useRef<(coinId: string, price: number) => void>(() => {});
 
   const [dismissedBuild, setDismissedBuild] = useState<string | null>(() =>
     localStorage.getItem('cs_dismissed_build')
@@ -268,7 +269,7 @@ export default function App() {
             localStorage.getItem('cs_fav_ref_prices') ?? '{}'
           );
           for (const a of pending) {
-            bumpRefPrice(a.coinId, a.currentPrice);
+            bumpRefPriceRef.current(a.coinId, a.currentPrice);
             refMap[a.coinId] = a.currentPrice;
             handleFavAlert(a);
           }
@@ -278,7 +279,7 @@ export default function App() {
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [refresh, handleFavAlert, bumpRefPrice]);
+  }, [refresh, handleFavAlert]);
 
   const handleIntervalChange = useCallback((ms: number) => {
     setRefreshInterval(ms);
@@ -333,6 +334,7 @@ export default function App() {
   );
 
   const { bumpRefPrice } = useFavoritePriceAlerts(favoriteCoins, favMoveUpPct, favMoveDownPct, handleFavAlert);
+  bumpRefPriceRef.current = bumpRefPrice;
 
   // Keep favSyncRef up-to-date on every render so the background handler always has fresh data
   favSyncRef.current = {
