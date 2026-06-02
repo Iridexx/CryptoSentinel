@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { hapticMedium } from '../utils/haptics';
 
-const TRIGGER = 60;   // px visivi per scattare il refresh
+const TRIGGER = 60;   // px visibili per scattare il refresh
 const MAX = 88;       // altezza massima indicatore
 const DAMPING = 0.45; // resistenza al drag
 
@@ -12,22 +12,24 @@ function setH(el: HTMLElement | null, h: number, animate = false) {
   el.style.height = `${h}px`;
 }
 
-export function usePullToRefresh(onRefresh: () => Promise<void> | void) {
+export function usePullToRefresh(onRefresh: () => Promise<void> | void, disabled = false) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const indicatorRef = useRef<HTMLDivElement | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const s = useRef({ startY: null as number | null, pullY: 0, refreshing: false });
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
 
   const onTouchStart = useCallback((e: TouchEvent) => {
     const el = containerRef.current;
-    if (!el || el.scrollTop > 0 || s.current.refreshing) return;
+    if (!el || el.scrollTop > 0 || s.current.refreshing || disabledRef.current) return;
     s.current.startY = e.touches[0].clientY;
     s.current.pullY = 0;
   }, []);
 
   const onTouchMove = useCallback((e: TouchEvent) => {
     const el = containerRef.current;
-    if (!el || s.current.startY === null) return;
+    if (!el || s.current.startY === null || disabledRef.current) return;
     if (el.scrollTop > 0) {
       s.current.startY = null;
       s.current.pullY = 0;

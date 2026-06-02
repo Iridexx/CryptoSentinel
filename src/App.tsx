@@ -13,6 +13,7 @@ import { usePullToRefresh } from './hooks/usePullToRefresh';
 import { hapticLight } from './utils/haptics';
 import UpdateNotification from './components/UpdateNotification';
 import Navbar, { type Tab } from './components/Navbar';
+import LogoLighthouse from './components/LogoLighthouse';
 import CoinCard from './components/CoinCard';
 import AlertModal from './components/AlertModal';
 import AlertsTab from './components/AlertsTab';
@@ -37,17 +38,78 @@ export default function App() {
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('24h');
   const [page, setPage] = useState(1);
   const [availableUpdate, setAvailableUpdate] = useState<UpdateResult | null>(null);
-  const [dismissedBuildNum, setDismissedBuildNum] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortBy>('rank');
   const [sortDesc, setSortDesc] = useState(true);
   const lastUpdateCheckRef = useRef<number>(0);
+
+  // — Update dismiss/snooze —
+  const [dismissedBuild, setDismissedBuild] = useState<string | null>(() =>
+    localStorage.getItem('cs_dismissed_build')
+  );
+  const [snoozedBuild, setSnoozedBuild] = useState<string | null>(() =>
+    localStorage.getItem('cs_snoozed_build')
+  );
+  const [snoozedUntil, setSnoozedUntil] = useState<number>(() =>
+    Number(localStorage.getItem('cs_snoozed_until') ?? 0)
+  );
+
+  // Re-mostra il popup quando lo snooze scade (senza bisogno di riaprire l'app)
+  useEffect(() => {
+    if (!snoozedUntil || Date.now() > snoozedUntil) return;
+    const t = setTimeout(() => setSnoozedUntil(0), snoozedUntil - Date.now());
+    return () => clearTimeout(t);
+  }, [snoozedUntil]);
+
+  const isUpdateVisible = useMemo(() =>
+    availableUpdate != null &&
+    availableUpdate.buildNumber !== dismissedBuild &&
+    (snoozedBuild !== availableUpdate.buildNumber || Date.now() > snoozedUntil),
+    [availableUpdate, dismissedBuild, snoozedBuild, snoozedUntil]
+  );
+
+  // "Ignora": nasconde questa versione specifica per sempre (fino a build più nuovo)
+  const handleIgnoreUpdate = useCallback(() => {
+    const build = availableUpdate?.buildNumber ?? '_';
+    localStorage.setItem('cs_dismissed_build', build);
+    setDismissedBuild(build);
+  }, [availableUpdate]);
+
+  // "Dopo": riappare dopo 4 ore, oppure subito se esce un build più nuovo
+  const handleSnoozeUpdate = useCallback(() => {
+    const build = availableUpdate?.buildNumber ?? '_';
+    const until = Date.now() + 4 * 60 * 60 * 1000;
+    localStorage.setItem('cs_snoozed_build', build);
+    localStorage.setItem('cs_snoozed_until', String(until));
+    setSnoozedBuild(build);
+    setSnoozedUntil(until);
+  }, [availableUpdate]);
+
+  // Dopo download completato: resetta tutto
+  const handleUpdateDone = useCallback(() => {
+    setAvailableUpdate(null);
+    localStorage.removeItem('cs_dismissed_build');
+    localStorage.removeItem('cs_snoozed_build');
+    localStorage.removeItem('cs_snoozed_until');
+    setDismissedBuild(null);
+    setSnoozedBuild(null);
+    setSnoozedUntil(0);
+  }, []);
 
   const runUpdateCheck = useCallback(async () => {
     lastUpdateCheckRef.current = Date.now();
     try {
       const result = await checkForUpdates(__APP_BUILD_NUMBER__);
       if (result.available) setAvailableUpdate(result);
-    } catch { /* silent */ }
+    } catch {
+      // Rete non ancora pronta (primo avvio post-installazione): riprova dopo 15s
+      lastUpdateCheckRef.current = 0;
+      setTimeout(async () => {
+        try {
+          const result = await checkForUpdates(__APP_BUILD_NUMBER__);
+          if (result.available) setAvailableUpdate(result);
+        } catch { /* silent */ }
+      }, 15_000);
+    }
   }, []);
 
   useEffect(() => {
@@ -106,7 +168,7 @@ export default function App() {
     setTimeout(() => setRefreshFlash(false), 1500);
   }, [refresh]);
 
-  const { containerRef: mainRef, indicatorRef: ptrRef, isRefreshing: ptrRefreshing } = usePullToRefresh(handleRefresh);
+  const { containerRef: mainRef, indicatorRef: ptrRef, isRefreshing: ptrRefreshing } = usePullToRefresh(handleRefresh, isUpdateVisible);
 
   const handleIntervalChange = useCallback((ms: number) => {
     setRefreshInterval(ms);
@@ -203,18 +265,35 @@ export default function App() {
         className="fixed inset-x-0 top-0 bg-dark-900 z-50 pointer-events-none"
         style={{ height: 'env(safe-area-inset-top)' }}
       />
-      <header className="bg-dark-900 border-b border-dark-700 px-4 pt-safe sticky top-0 z-40">
+      <header
+        className="px-4 pt-safe sticky top-0 z-40"
+        style={{
+          background: 'linear-gradient(180deg, #07101F 0%, #0A1628 70%, #0D1A2E 100%)',
+          borderBottom: '1px solid rgba(59,130,246,0.18)',
+        }}
+      >
         <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-between py-3">
+          <div className="flex items-center justify-between py-2.5">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">₿</span>
-              <h1 className="text-white font-bold text-lg tracking-tight">CryptoSentinel</h1>
+              <LogoLighthouse />
+              <h1
+                className="text-white font-bold text-xl tracking-tight"
+                style={{ textShadow: '0 0 22px rgba(96,165,250,0.38), 0 0 48px rgba(59,130,246,0.12)' }}
+              >
+                CryptoSentinel
+              </h1>
             </div>
             <div className="flex items-center gap-2">
               {lastUpdated && (
-                <span className={`text-xs transition-colors ${refreshFlash ? 'text-accent-green font-medium' : 'text-gray-600'}`}>
-                  {refreshFlash ? '✓ Aggiornato' : lastUpdated.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ background: '#3B82F6', boxShadow: '0 0 6px rgba(59,130,246,0.9)' }}
+                  />
+                  <span className={`text-xs tabular-nums transition-colors ${refreshFlash ? 'text-accent-green font-medium' : 'text-gray-500'}`}>
+                    {refreshFlash ? '✓ OK' : lastUpdated.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                </div>
               )}
             </div>
           </div>
@@ -268,11 +347,13 @@ export default function App() {
             </div>
           )}
 
-          {availableUpdate && availableUpdate.buildNumber !== dismissedBuildNum && (
+          {availableUpdate && isUpdateVisible && (
             <UpdateNotification
               update={availableUpdate}
               dlState={dlState}
-              onDismiss={() => setDismissedBuildNum(availableUpdate?.buildNumber ?? '')}
+              onIgnore={handleIgnoreUpdate}
+              onSnooze={handleSnoozeUpdate}
+              onDismiss={handleUpdateDone}
               onDownloadStart={() => setDlState('downloading')}
             />
           )}
