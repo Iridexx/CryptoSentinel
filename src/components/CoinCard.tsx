@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FC } from 'react';
 import type { Coin } from '../types';
 import type { Currency } from '../hooks/useCurrency';
+import type { FavAlertData } from '../hooks/useFavoritePriceAlerts';
 import { hapticMedium, hapticLight } from '../utils/haptics';
 
 const SYMBOL: Record<Currency, string> = { usd: '$', eur: '€', btc: '₿' };
@@ -38,9 +39,11 @@ interface Props {
   currency: Currency;
   showVolume?: boolean;
   timeFrame?: TimeFrame;
+  alertPending?: FavAlertData;
+  onAlertTap?: () => void;
 }
 
-const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, currency, showVolume, timeFrame = '24h' }) => {
+const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, currency, showVolume, timeFrame = '24h', alertPending, onAlertTap }) => {
   const displayChange =
     timeFrame === '1h' ? (coin.price_change_percentage_1h_in_currency ?? coin.price_change_percentage_24h) :
     timeFrame === '7d' ? (coin.price_change_percentage_7d_in_currency ?? coin.price_change_percentage_24h) :
@@ -48,7 +51,6 @@ const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, c
   const isPositive = displayChange >= 0;
   const sym = SYMBOL[currency];
 
-  // Flash verde/rosso quando il prezzo cambia rispetto al dato precedente
   const prevPriceRef = useRef(coin.current_price);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
 
@@ -62,35 +64,49 @@ const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, c
   }, [coin.current_price]);
 
   return (
-    <div className="flex items-center gap-3 bg-dark-800 rounded-xl p-3 hover:bg-dark-700 transition-colors">
-      <span className="text-xs text-white font-mono w-6 text-right flex-shrink-0 tabular-nums">
-        {coin.market_cap_rank ?? '—'}
-      </span>
-      <img src={coin.image} alt={coin.name} className="w-9 h-9 rounded-full flex-shrink-0" loading="lazy" />
+    <div className={`flex items-center gap-3 rounded-xl p-3 transition-colors relative ${
+      alertPending
+        ? 'bg-[#1c1208] ring-2 ring-orange-500/60 hover:bg-[#221508]'
+        : 'bg-dark-800 hover:bg-dark-700'
+    }`}>
+      {alertPending && (
+        <span className="absolute top-1.5 right-10 w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+      )}
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1">
-          <span className="font-semibold text-sm text-white truncate">{coin.name}</span>
-          <span className="text-xs text-gray-400 uppercase flex-shrink-0">{coin.symbol}</span>
-        </div>
-        <div className="text-xs text-gray-400 mt-0.5">
-          {showVolume
-            ? `Vol: ${formatMarketCap(coin.total_volume, currency)}`
-            : `Cap: ${formatMarketCap(coin.market_cap, currency)}`}
-        </div>
-      </div>
+      {/* Tappable area (separata dai bottoni) */}
+      <div
+        className={`flex items-center gap-3 flex-1 min-w-0 ${alertPending ? 'cursor-pointer' : ''}`}
+        onClick={alertPending && onAlertTap ? onAlertTap : undefined}
+      >
+        <span className="text-xs text-white font-mono w-6 text-right flex-shrink-0 tabular-nums">
+          {coin.market_cap_rank ?? '—'}
+        </span>
+        <img src={coin.image} alt={coin.name} className="w-9 h-9 rounded-full flex-shrink-0" loading="lazy" />
 
-      <div className="text-right flex-shrink-0">
-        <div className={`font-bold text-sm transition-colors duration-300 ${
-          flash === 'up' ? 'text-accent-green' :
-          flash === 'down' ? 'text-accent-red' :
-          'text-white'
-        }`}>
-          {sym}{formatPrice(coin.current_price, currency)}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1">
+            <span className="font-semibold text-sm text-white truncate">{coin.name}</span>
+            <span className="text-xs text-gray-400 uppercase flex-shrink-0">{coin.symbol}</span>
+          </div>
+          <div className="text-xs text-gray-400 mt-0.5">
+            {showVolume
+              ? `Vol: ${formatMarketCap(coin.total_volume, currency)}`
+              : `Cap: ${formatMarketCap(coin.market_cap, currency)}`}
+          </div>
         </div>
-        <div className={`text-xs font-medium mt-0.5 ${isPositive ? 'text-accent-green' : 'text-accent-red'}`}>
-          {isPositive ? '▲' : '▼'} {Math.abs(displayChange).toFixed(2)}%
-          {timeFrame !== '24h' && <span className="text-gray-600 ml-0.5">{timeFrame === '1h' ? '1h' : '7g'}</span>}
+
+        <div className="text-right flex-shrink-0">
+          <div className={`font-bold text-sm transition-colors duration-300 ${
+            flash === 'up' ? 'text-accent-green' :
+            flash === 'down' ? 'text-accent-red' :
+            'text-white'
+          }`}>
+            {sym}{formatPrice(coin.current_price, currency)}
+          </div>
+          <div className={`text-xs font-medium mt-0.5 ${isPositive ? 'text-accent-green' : 'text-accent-red'}`}>
+            {isPositive ? '▲' : '▼'} {Math.abs(displayChange).toFixed(2)}%
+            {timeFrame !== '24h' && <span className="text-gray-600 ml-0.5">{timeFrame === '1h' ? '1h' : '7g'}</span>}
+          </div>
         </div>
       </div>
 

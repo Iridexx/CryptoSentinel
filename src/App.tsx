@@ -10,7 +10,7 @@ import { isBatteryBannerDismissed } from './utils/energySaving';
 import { onDownloadComplete, triggerImmediateCheck, checkForUpdates, type UpdateResult } from './utils/update';
 import { useSearch } from './hooks/useSearch';
 import { usePullToRefresh } from './hooks/usePullToRefresh';
-import { useFavoritePriceAlerts } from './hooks/useFavoritePriceAlerts';
+import { useFavoritePriceAlerts, type FavAlertData } from './hooks/useFavoritePriceAlerts';
 import { hapticLight } from './utils/haptics';
 import UpdateNotification from './components/UpdateNotification';
 import Navbar, { type Tab } from './components/Navbar';
@@ -21,6 +21,7 @@ import AlertsTab from './components/AlertsTab';
 import NotificationBanner from './components/NotificationBanner';
 import EnergySavingBanner from './components/EnergySavingBanner';
 import SettingsTab from './components/SettingsTab';
+import FavMovePopup from './components/FavMovePopup';
 
 const INTERVAL_KEY = 'cryptosentinel_refresh_interval';
 const SLIDER_RANGE_KEY = 'cryptosentinel_alert_slider_range';
@@ -45,7 +46,6 @@ export default function App() {
   const [sortDesc, setSortDesc] = useState(true);
   const lastUpdateCheckRef = useRef<number>(0);
 
-  // — Update dismiss/snooze —
   const [dismissedBuild, setDismissedBuild] = useState<string | null>(() =>
     localStorage.getItem('cs_dismissed_build')
   );
@@ -168,6 +168,22 @@ export default function App() {
     localStorage.setItem(FAV_DOWN_KEY, String(n));
   }, []);
 
+  const [pendingFavAlerts, setPendingFavAlerts] = useState<Map<string, FavAlertData>>(new Map());
+  const [selectedFavAlert, setSelectedFavAlert] = useState<FavAlertData | null>(null);
+
+  const handleFavAlert = useCallback((alert: FavAlertData) => {
+    setPendingFavAlerts(prev => new Map(prev).set(alert.coinId, alert));
+  }, []);
+
+  const handleDismissFavAlert = useCallback((coinId: string) => {
+    setPendingFavAlerts(prev => {
+      const next = new Map(prev);
+      next.delete(coinId);
+      return next;
+    });
+    setSelectedFavAlert(null);
+  }, []);
+
   const { currency, changeCurrency } = useCurrency();
   const { coins, loading, error, lastUpdated, refresh } = useCryptoData(refreshInterval, perPage, page, currency);
   const { results: searchResults, searching } = useSearch(search, currency);
@@ -184,6 +200,13 @@ export default function App() {
   }, [refresh]);
 
   const { containerRef: mainRef, indicatorRef: ptrRef, isRefreshing: ptrRefreshing } = usePullToRefresh(handleRefresh, isUpdateVisible);
+
+  // Refresh immediato al ritorno in foreground: garantisce il check prezzi preferiti
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [refresh]);
 
   const handleIntervalChange = useCallback((ms: number) => {
     setRefreshInterval(ms);
@@ -237,7 +260,7 @@ export default function App() {
     [coins, isFavorite]
   );
 
-  useFavoritePriceAlerts(favoriteCoins, favMoveUpPct, favMoveDownPct);
+  useFavoritePriceAlerts(favoriteCoins, favMoveUpPct, favMoveDownPct, handleFavAlert);
 
   const handleAddAlert = useCallback((coin: Coin) => {
     setSelectedCoin(coin);
@@ -507,6 +530,8 @@ export default function App() {
                       onToggleFavorite={toggleFavorite}
                       onAddAlert={handleAddAlert}
                       currency={currency}
+                      alertPending={pendingFavAlerts.get(coin.id)}
+                      onAlertTap={() => setSelectedFavAlert(pendingFavAlerts.get(coin.id) ?? null)}
                     />
                   ))}
                 </div>
@@ -558,6 +583,14 @@ export default function App() {
           onConfirm={handleConfirmAlert}
           onConfirmRange={handleConfirmRange}
           onClose={() => setSelectedCoin(null)}
+        />
+      )}
+
+      {selectedFavAlert && (
+        <FavMovePopup
+          alert={selectedFavAlert}
+          currency={currency}
+          onDismiss={() => handleDismissFavAlert(selectedFavAlert.coinId)}
         />
       )}
     </div>
