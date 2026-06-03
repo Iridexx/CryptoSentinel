@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { type UTCTimestamp } from 'lightweight-charts';
 
-export interface LinePoint { time: number; value: number }
-export interface CandlePoint { time: number; open: number; high: number; low: number; close: number }
+export interface LinePoint { time: UTCTimestamp; value: number }
+export interface CandlePoint { time: UTCTimestamp; open: number; high: number; low: number; close: number }
 
 const BASE = 'https://api.coingecko.com/api/v3/coins';
 
@@ -38,7 +39,7 @@ export function useCoinChart(
           );
           if (!res.ok) throw new Error();
           const json = await res.json() as { prices: [number, number][] };
-          setLineData(json.prices.map(([ts, v]) => ({ time: Math.floor(ts / 1000), value: v })));
+          setLineData(json.prices.map(([ts, v]) => ({ time: Math.floor(ts / 1000) as UTCTimestamp, value: v })));
         } else {
           const res = await fetch(
             `${BASE}/${coinId}/ohlc?vs_currency=${currency}&days=${ohlcDays(days)}`,
@@ -52,7 +53,7 @@ export function useCoinChart(
             const t = Math.floor(ts / 1000);
             if (seen.has(t)) continue;
             seen.add(t);
-            pts.push({ time: t, open: o, high: h, low: l, close: c });
+            pts.push({ time: t as UTCTimestamp, open: o, high: h, low: l, close: c });
           }
           setCandleData(pts);
         }
