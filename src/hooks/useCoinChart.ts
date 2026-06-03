@@ -60,7 +60,7 @@ export function useCoinChart(
       } catch (e) {
         if ((e as Error).name !== 'AbortError') setError(true);
       } finally {
-        setLoading(false);
+        if (!ctrl.signal.aborted) setLoading(false);
       }
     })();
 
