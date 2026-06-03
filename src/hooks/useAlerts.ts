@@ -87,7 +87,7 @@ export function useAlerts(coins: Coin[]) {
           return next;
         });
         playAlertBeep();
-        sendAlertNotification({ alert: newAlert, coinName: alertData.coinName, direction: alertData.direction, threshold: alertData.threshold, currentPrice: price, note: alertData.note });
+        sendAlertNotification({ coinName: alertData.coinName, direction: alertData.direction, threshold: alertData.threshold, currentPrice: price, note: alertData.note });
       }
     }
 
@@ -225,7 +225,9 @@ export function useAlerts(coins: Coin[]) {
       if (filtered.length === 0) return;
 
       playAlertBeep();
-      filtered.forEach((params) => sendAlertNotification(params));
+      filtered.forEach(({ coinName, direction, threshold, currentPrice, note }) =>
+        sendAlertNotification({ coinName, direction, threshold, currentPrice, note })
+      );
     };
 
     fire();
@@ -264,7 +266,7 @@ export function useAlerts(coins: Coin[]) {
             return next;
           });
           playAlertBeep();
-          sendAlertNotification({ alert: { ...existing, threshold, direction }, coinName: existing.coinName, direction, threshold, currentPrice: price, note: note !== undefined ? note : existing.note });
+          sendAlertNotification({ coinName: existing.coinName, direction, threshold, currentPrice: price, note: note !== undefined ? note : existing.note });
         }
       }
     }
