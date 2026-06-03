@@ -1,5 +1,5 @@
 import { type FC, useEffect, useRef, useState, useMemo } from 'react';
-import { createChart, ColorType, LineStyle, CrosshairMode } from 'lightweight-charts';
+import { createChart, ColorType, LineStyle, CrosshairMode, LineSeries, CandlestickSeries } from 'lightweight-charts';
 import type { Coin, PriceAlert, RangeAlert } from '../types';
 import type { Currency } from '../hooks/useCurrency';
 import { useCoinChart } from '../hooks/useCoinChart';
@@ -97,7 +97,7 @@ const CoinChartSheet: FC<Props> = ({
       chartRef.current = chart;
 
       if (mode === 'line') {
-        const series = chart.addLineSeries({ color: '#3b82f6', lineWidth: 2, lastValueVisible: true, priceLineVisible: false });
+        const series = chart.addSeries(LineSeries, { color: '#3b82f6', lineWidth: 2, lastValueVisible: true, priceLineVisible: false });
         series.setData(lineData);
         if (showAlerts) {
           coinAlerts.forEach(a => {
@@ -117,7 +117,7 @@ const CoinChartSheet: FC<Props> = ({
           });
         }
       } else {
-        const series = chart.addCandlestickSeries({
+        const series = chart.addSeries(CandlestickSeries, {
           upColor: '#10b981',
           downColor: '#ef4444',
           borderUpColor: '#10b981',
