@@ -158,6 +158,19 @@
   .rbody p{margin:8px 0;}
   .rbody .muted{color:var(--faint);}
 
+  /* dev section */
+  .dev-card{max-width:760px;margin:0 auto;background:linear-gradient(135deg,rgba(13,26,51,.7),rgba(8,18,38,.9));border:1px solid var(--line);border-radius:var(--radius);padding:36px 40px;display:flex;align-items:center;gap:36px;flex-wrap:wrap;}
+  .dev-avatar{width:72px;height:72px;border-radius:50%;border:2px solid rgba(111,176,255,.3);flex-shrink:0;background:linear-gradient(135deg,#0d1a33,#1a2d55);display:grid;place-items:center;}
+  .dev-avatar svg{width:36px;height:36px;stroke:var(--blue-bright);}
+  .dev-info{flex:1;min-width:0;}
+  .dev-info .dev-name{font-family:'Sora',sans-serif;font-weight:700;font-size:22px;margin-bottom:4px;}
+  .dev-info .dev-role{color:var(--muted);font-size:15px;margin-bottom:14px;}
+  .dev-info .dev-note{color:#b0c0dc;font-size:15px;line-height:1.6;max-width:52ch;}
+  .dev-links{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;}
+  .btn-x{display:inline-flex;align-items:center;gap:10px;padding:11px 20px;border-radius:12px;background:#000;border:1px solid rgba(255,255,255,.15);color:#fff;font-weight:700;font-size:14.5px;transition:.2s;}
+  .btn-x:hover{background:#111;border-color:rgba(255,255,255,.3);transform:translateY(-1px);}
+  .btn-x svg{width:18px;height:18px;fill:#fff;flex-shrink:0;}
+
   /* footer */
   footer{border-top:1px solid var(--line);padding:40px 0;margin-top:24px;}
   footer .wrap{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;color:var(--faint);font-size:14px;}
@@ -339,6 +352,37 @@
           <div class="rdate" id="relDate"></div>
         </div>
         <div class="rbody" id="relBody"><p class="muted">Recupero delle note di rilascio da GitHub…</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEVELOPER -->
+  <section id="sviluppatore">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">Chi c'è dietro</div>
+        <h2 class="sora">Lo sviluppatore</h2>
+      </div>
+      <div class="dev-card">
+        <div class="dev-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="dev-info">
+          <div class="dev-name">@eifel3btc</div>
+          <div class="dev-role">Sviluppatore indipendente · Bitcoiner</div>
+          <p class="dev-note">
+            CryptoSentinel è un progetto open source sviluppato per passione.<br>
+            Nessun tracker, nessuna pubblicità, nessuna registrazione — solo lo strumento che volevo usare io stesso.
+          </p>
+          <div class="dev-links">
+            <a class="btn-x" href="https://x.com/eifel3btc" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.912-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              Seguimi su X
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   </section>
