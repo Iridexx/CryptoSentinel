@@ -110,6 +110,12 @@ interface Props {
   onCurrencyChange: (c: Currency) => void;
   sliderRange: number;
   onSliderRangeChange: (n: number) => void;
+  favMoveUpPct: number;
+  onFavMoveUpPctChange: (n: number) => void;
+  favMoveDownPct: number;
+  onFavMoveDownPctChange: (n: number) => void;
+  rankAnimTopN: number;
+  onRankAnimTopNChange: (n: number) => void;
 }
 
 const SettingsTab: FC<Props> = ({
@@ -128,6 +134,12 @@ const SettingsTab: FC<Props> = ({
   onCurrencyChange,
   sliderRange,
   onSliderRangeChange,
+  favMoveUpPct,
+  onFavMoveUpPctChange,
+  favMoveDownPct,
+  onFavMoveDownPctChange,
+  rankAnimTopN,
+  onRankAnimTopNChange,
 }) => {
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [updateInfo, setUpdateInfo] = useState<UpdateResult | null>(null);
@@ -418,6 +430,61 @@ const SettingsTab: FC<Props> = ({
               ))}
             </div>
           </div>
+          <div className="px-4 py-3">
+            <p className="text-sm text-white mb-1">Allarme variazione preferiti</p>
+            <p className="text-xs text-gray-500 mb-3">Ricevi una notifica quando il prezzo di un preferito si muove della percentuale impostata</p>
+            <div className="space-y-2">
+              <div>
+                <p className="text-xs text-gray-400 mb-1.5">↑ Rialzo</p>
+                <div className="flex gap-2">
+                  {([0, 2, 4, 8, 10] as const).map((pct) => (
+                    <button
+                      key={pct}
+                      onClick={() => onFavMoveUpPctChange(pct)}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        favMoveUpPct === pct ? 'bg-accent-blue text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {pct === 0 ? 'Off' : `${pct}%`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-1.5">↓ Ribasso</p>
+                <div className="flex gap-2">
+                  {([0, 2, 4, 8, 10] as const).map((pct) => (
+                    <button
+                      key={pct}
+                      onClick={() => onFavMoveDownPctChange(pct)}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        favMoveDownPct === pct ? 'bg-accent-blue text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {pct === 0 ? 'Off' : `${pct}%`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-sm text-white mb-1">Animazione rank mercato</p>
+            <p className="text-xs text-gray-500 mb-3">Illumina la card quando una coin guadagna o perde posizioni nella top N per capitalizzazione</p>
+            <div className="flex gap-2">
+              {([0, 50, 100, 200] as const).map((n) => (
+                <button
+                  key={n}
+                  onClick={() => onRankAnimTopNChange(n)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    rankAnimTopN === n ? 'bg-accent-blue text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {n === 0 ? 'Off' : `Top ${n}`}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -491,10 +558,23 @@ const SettingsTab: FC<Props> = ({
             <span className="text-sm text-gray-400">Sviluppatore</span>
             <span className="text-sm text-white font-medium">Iridexx</span>
           </div>
-          <div className="px-4 py-3 flex items-center justify-between">
-            <span className="text-sm text-gray-400">Fonte dati</span>
-            <span className="text-sm text-white font-medium">CoinGecko API</span>
-          </div>
+          <a
+            href="https://www.coingecko.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-3 flex items-center gap-3 hover:bg-dark-700 active:bg-dark-600 transition-colors group"
+          >
+            <span className="text-xl w-7 text-center flex-shrink-0">🦎</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-white font-medium">CoinGecko</p>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                Dati di mercato forniti gratuitamente — grazie per il fantastico servizio!
+              </p>
+            </div>
+            <svg className="w-3.5 h-3.5 text-gray-600 group-hover:text-gray-400 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
           <div className="px-4 py-3 flex items-center justify-between">
             <span className="text-sm text-gray-400">Dati personali</span>
             <span className="text-sm text-accent-green font-medium">Nessuno raccolto</span>
@@ -572,10 +652,6 @@ const SettingsTab: FC<Props> = ({
           ))}
         </div>
       </section>
-
-      <p className="text-center text-xs text-gray-600 pb-2">
-        I dati di mercato sono forniti da CoinGecko API (gratuita).
-      </p>
 
       {/* Modalità Sviluppatore */}
       <section>

@@ -64,6 +64,14 @@ export function useRangeAlerts(coins: Coin[]) {
     });
   }, []);
 
+  const toggleRangeAlert = useCallback((id: string) => {
+    setRangeAlerts((prev) => {
+      const next = prev.map((a) => a.id === id ? { ...a, active: !(a.active ?? true) } : a);
+      saveRangeAlerts(next);
+      return next;
+    });
+  }, []);
+
   const clearRangeAlerts = useCallback(() => {
     setRangeAlerts([]);
     localStorage.removeItem(STORAGE_KEY);
@@ -106,6 +114,7 @@ export function useRangeAlerts(coins: Coin[]) {
     const toNotify: Array<{ alert: RangeAlert; entered: boolean; price: number }> = [];
 
     for (const alert of rangeAlertsRef.current) {
+      if (!(alert.active ?? true)) continue;
       const coin = coins.find((c) => c.id === alert.coinId);
       if (!coin) continue;
 
@@ -113,12 +122,11 @@ export function useRangeAlerts(coins: Coin[]) {
       const isInside = price >= alert.minPrice && price <= alert.maxPrice;
 
       if (alert.isInsideRange === null) {
-        // Alert appena creato: se il prezzo è già fuori range, notifica subito
         const isNew = Date.now() - alert.createdAt < 10 * 60 * 1000;
-        if (!isInside && isNew) {
+        if (isInside && isNew) {
           const cooldownOk = alert.lastNotifiedAt === null || now - alert.lastNotifiedAt >= COOLDOWN_MS;
-          toUpdate.push({ id: alert.id, updates: { isInsideRange: false, ...(cooldownOk ? { lastNotifiedAt: now } : {}) } });
-          if (cooldownOk) toNotify.push({ alert, entered: false, price });
+          toUpdate.push({ id: alert.id, updates: { isInsideRange: true, ...(cooldownOk ? { lastNotifiedAt: now } : {}) } });
+          if (cooldownOk) toNotify.push({ alert, entered: true, price });
         } else {
           toUpdate.push({ id: alert.id, updates: { isInsideRange: isInside } });
         }
@@ -163,5 +171,5 @@ export function useRangeAlerts(coins: Coin[]) {
     });
   }, [coins]);
 
-  return { rangeAlerts, addRangeAlert, removeRangeAlert, editRangeAlert, clearRangeAlerts };
+  return { rangeAlerts, addRangeAlert, removeRangeAlert, editRangeAlert, toggleRangeAlert, clearRangeAlerts };
 }

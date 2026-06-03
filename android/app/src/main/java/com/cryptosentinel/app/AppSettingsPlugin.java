@@ -73,7 +73,6 @@ public class AppSettingsPlugin extends Plugin {
                 if (id != downloadId) return;
                 ctx.unregisterReceiver(this);
 
-                // Notifica il layer JavaScript che il download è completato
                 JSObject data = new JSObject();
                 data.put("status", "completed");
                 notifyListeners("downloadComplete", data);
@@ -146,6 +145,38 @@ public class AppSettingsPlugin extends Plugin {
         getContext().getSharedPreferences("cryptosentinel_prefs", android.content.Context.MODE_PRIVATE)
             .edit().putString("alerts_json", json).apply();
         call.resolve();
+    }
+
+    @PluginMethod
+    public void syncFavAlerts(PluginCall call) {
+        String coinsJson     = call.getString("coinsJson", "[]");
+        float  upPct         = call.getFloat("upPct",   0f);
+        float  downPct       = call.getFloat("downPct", 0f);
+        String refPricesJson = call.getString("refPricesJson", "{}");
+        String currency      = call.getString("currency", "usd");
+        android.content.SharedPreferences.Editor ed = getContext()
+            .getSharedPreferences("cryptosentinel_prefs", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putString("fav_coins_json", coinsJson)
+            .putFloat("fav_up_pct",   upPct)
+            .putFloat("fav_down_pct", downPct)
+            .putString("fav_currency", currency);
+        if (refPricesJson != null && !refPricesJson.equals("{}") && !refPricesJson.isEmpty()) {
+            ed.putString("fav_ref_prices", refPricesJson);
+        }
+        ed.apply();
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void getAndClearPendingFavAlerts(PluginCall call) {
+        android.content.SharedPreferences prefs = getContext()
+            .getSharedPreferences("cryptosentinel_prefs", android.content.Context.MODE_PRIVATE);
+        String json = prefs.getString("pending_fav_alerts_json", "[]");
+        prefs.edit().putString("pending_fav_alerts_json", "[]").apply();
+        JSObject result = new JSObject();
+        result.put("json", json);
+        call.resolve(result);
     }
 
     @PluginMethod

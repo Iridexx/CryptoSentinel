@@ -1,15 +1,16 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { Coin } from './types';
-import { useCryptoData } from './hooks/useCryptoData';
+import { useCryptoData, type PerPage } from './hooks/useCryptoData';
 import { useFavorites } from './hooks/useFavorites';
 import { useAlerts } from './hooks/useAlerts';
 import { useRangeAlerts } from './hooks/useRangeAlerts';
 import { useCurrency } from './hooks/useCurrency';
-import { getNotificationPermission, initNotifications } from './utils/notifications';
+import { getNotificationPermission, initNotifications, syncFavAlertsNative, getAndClearPendingFavAlerts } from './utils/notifications';
 import { isBatteryBannerDismissed } from './utils/energySaving';
 import { onDownloadComplete, triggerImmediateCheck, checkForUpdates, type UpdateResult } from './utils/update';
 import { useSearch } from './hooks/useSearch';
 import { usePullToRefresh } from './hooks/usePullToRefresh';
+import { useFavoritePriceAlerts, type FavAlertData } from './hooks/useFavoritePriceAlerts';
 import { hapticLight } from './utils/haptics';
 import UpdateNotification from './components/UpdateNotification';
 import Navbar, { type Tab } from './components/Navbar';
@@ -20,29 +21,37 @@ import AlertsTab from './components/AlertsTab';
 import NotificationBanner from './components/NotificationBanner';
 import EnergySavingBanner from './components/EnergySavingBanner';
 import SettingsTab from './components/SettingsTab';
+import FavMovePopup from './components/FavMovePopup';
+import CoinChartSheet from './components/CoinChartSheet';
+import SplashOverlay, { shouldShowSplash } from './components/SplashOverlay';
 
 const INTERVAL_KEY = 'cryptosentinel_refresh_interval';
 const SLIDER_RANGE_KEY = 'cryptosentinel_alert_slider_range';
+const FAV_UP_KEY = 'cs_fav_up_pct';
+const FAV_DOWN_KEY = 'cs_fav_down_pct';
+const RANK_ANIM_KEY = 'cs_rank_anim_topn';
 
 type SortBy = 'rank' | 'change' | '7d' | 'volume' | 'price';
 type TimeFrame = '1h' | '24h' | '7d';
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(shouldShowSplash);
   const [tab, setTab] = useState<Tab>('dashboard');
   const [search, setSearch] = useState('');
   const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
   const [batteryDismissed, setBatteryDismissed] = useState(isBatteryBannerDismissed);
   const [dlState, setDlState] = useState<'idle' | 'downloading' | 'done'>('idle');
-  const [perPage, setPerPage] = useState<50 | 100>(50);
+  const [perPage, setPerPage] = useState<PerPage>(50);
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('24h');
   const [page, setPage] = useState(1);
   const [availableUpdate, setAvailableUpdate] = useState<UpdateResult | null>(null);
   const [sortBy, setSortBy] = useState<SortBy>('rank');
   const [sortDesc, setSortDesc] = useState(true);
   const lastUpdateCheckRef = useRef<number>(0);
+  const favSyncRef = useRef({ coinsJson: '[]', upPct: 0, downPct: 0, refPricesJson: '{}', currency: 'usd' });
+  const bumpRefPriceRef = useRef<(coinId: string, price: number) => void>(() => {});
 
-  // — Update dismiss/snooze —
   const [dismissedBuild, setDismissedBuild] = useState<string | null>(() =>
     localStorage.getItem('cs_dismissed_build')
   );
@@ -53,7 +62,6 @@ export default function App() {
     Number(localStorage.getItem('cs_snoozed_until') ?? 0)
   );
 
-  // Re-mostra il popup quando lo snooze scade (senza bisogno di riaprire l'app)
   useEffect(() => {
     if (!snoozedUntil || Date.now() > snoozedUntil) return;
     const t = setTimeout(() => setSnoozedUntil(0), snoozedUntil - Date.now());
@@ -67,14 +75,12 @@ export default function App() {
     [availableUpdate, dismissedBuild, snoozedBuild, snoozedUntil]
   );
 
-  // "Ignora": nasconde questa versione specifica per sempre (fino a build più nuovo)
   const handleIgnoreUpdate = useCallback(() => {
     const build = availableUpdate?.buildNumber ?? '_';
     localStorage.setItem('cs_dismissed_build', build);
     setDismissedBuild(build);
   }, [availableUpdate]);
 
-  // "Dopo": riappare dopo 4 ore, oppure subito se esce un build più nuovo
   const handleSnoozeUpdate = useCallback(() => {
     const build = availableUpdate?.buildNumber ?? '_';
     const until = Date.now() + 4 * 60 * 60 * 1000;
@@ -84,7 +90,6 @@ export default function App() {
     setSnoozedUntil(until);
   }, [availableUpdate]);
 
-  // Dopo download completato: resetta tutto
   const handleUpdateDone = useCallback(() => {
     setAvailableUpdate(null);
     localStorage.removeItem('cs_dismissed_build');
@@ -124,6 +129,8 @@ export default function App() {
         }
       } else {
         triggerImmediateCheck();
+        const s = favSyncRef.current;
+        syncFavAlertsNative(s.coinsJson, s.upPct, s.downPct, s.refPricesJson, s.currency);
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
@@ -153,12 +160,100 @@ export default function App() {
     localStorage.setItem(SLIDER_RANGE_KEY, String(n));
   }, []);
 
+  const [favMoveUpPct, setFavMoveUpPct] = useState<number>(() =>
+    Number(localStorage.getItem(FAV_UP_KEY) ?? 0)
+  );
+  const [favMoveDownPct, setFavMoveDownPct] = useState<number>(() =>
+    Number(localStorage.getItem(FAV_DOWN_KEY) ?? 0)
+  );
+
+  const handleFavMoveUpPctChange = useCallback((n: number) => {
+    setFavMoveUpPct(n);
+    localStorage.setItem(FAV_UP_KEY, String(n));
+  }, []);
+
+  const handleFavMoveDownPctChange = useCallback((n: number) => {
+    setFavMoveDownPct(n);
+    localStorage.setItem(FAV_DOWN_KEY, String(n));
+  }, []);
+
+  const [rankAnimTopN, setRankAnimTopN] = useState<number>(() =>
+    Number(localStorage.getItem(RANK_ANIM_KEY) ?? 100)
+  );
+  const handleRankAnimTopNChange = useCallback((n: number) => {
+    setRankAnimTopN(n);
+    localStorage.setItem(RANK_ANIM_KEY, String(n));
+  }, []);
+
+  const [pendingFavAlerts, setPendingFavAlerts] = useState<Map<string, FavAlertData>>(new Map());
+  const [selectedFavAlert, setSelectedFavAlert] = useState<FavAlertData | null>(null);
+  const [chartCoin, setChartCoin] = useState<Coin | null>(null);
+
+  const handleChartTap = useCallback((coin: Coin) => {
+    setChartCoin(coin);
+  }, []);
+
+  const handleFavAlert = useCallback((alert: FavAlertData) => {
+    setPendingFavAlerts(prev => new Map(prev).set(alert.coinId, alert));
+  }, []);
+
+  const handleDismissFavAlert = useCallback((coinId: string) => {
+    setPendingFavAlerts(prev => {
+      const next = new Map(prev);
+      next.delete(coinId);
+      return next;
+    });
+    setSelectedFavAlert(null);
+  }, []);
+
   const { currency, changeCurrency } = useCurrency();
   const { coins, loading, error, lastUpdated, refresh } = useCryptoData(refreshInterval, perPage, page, currency);
+
+  const prevRanksRef = useRef<Map<string, number>>(new Map());
+  const [rankDeltas, setRankDeltas] = useState<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    prevRanksRef.current = new Map();
+  }, [currency, perPage, page]);
+
+  useEffect(() => {
+    if (coins.length === 0) return;
+
+    if (prevRanksRef.current.size === 0) {
+      for (const coin of coins) {
+        if (coin.market_cap_rank != null) prevRanksRef.current.set(coin.id, coin.market_cap_rank);
+      }
+      return;
+    }
+
+    const newDeltas = new Map<string, number>();
+    if (rankAnimTopN > 0) {
+      for (const coin of coins) {
+        const prev = prevRanksRef.current.get(coin.id);
+        const curr = coin.market_cap_rank;
+        if (prev != null && curr != null && prev !== curr && curr <= rankAnimTopN) {
+          newDeltas.set(coin.id, prev - curr);
+        }
+      }
+    }
+
+    for (const coin of coins) {
+      if (coin.market_cap_rank != null) prevRanksRef.current.set(coin.id, coin.market_cap_rank);
+    }
+
+    if (newDeltas.size === 0) {
+      setRankDeltas(new Map());
+      return;
+    }
+    setRankDeltas(newDeltas);
+    const t = setTimeout(() => setRankDeltas(new Map()), 4000);
+    return () => clearTimeout(t);
+  }, [coins, rankAnimTopN]);
+
   const { results: searchResults, searching } = useSearch(search, currency);
   const { favorites, toggle: toggleFavorite, isFavorite, clear: clearFavorites } = useFavorites();
-  const { alerts, addAlert, removeAlert, resetAlert, editAlert, clearAlerts, history, clearHistory } = useAlerts(coins);
-  const { rangeAlerts, addRangeAlert, removeRangeAlert, editRangeAlert } = useRangeAlerts(coins);
+  const { alerts, addAlert, removeAlert, resetAlert, editAlert, toggleAlert, clearAlerts, history, clearHistory } = useAlerts(coins);
+  const { rangeAlerts, addRangeAlert, removeRangeAlert, editRangeAlert, toggleRangeAlert } = useRangeAlerts(coins);
 
   const [refreshFlash, setRefreshFlash] = useState(false);
 
@@ -170,17 +265,45 @@ export default function App() {
 
   const { containerRef: mainRef, indicatorRef: ptrRef, isRefreshing: ptrRefreshing } = usePullToRefresh(handleRefresh, isUpdateVisible);
 
+  // Refresh immediato al ritorno in foreground + lettura alert pending dal WorkManager nativo
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      getAndClearPendingFavAlerts().then(json => {
+        try {
+          const pending: FavAlertData[] = JSON.parse(json);
+          if (pending.length > 0) {
+            const refMap: Record<string, number> = JSON.parse(
+              localStorage.getItem('cs_fav_ref_prices') ?? '{}'
+            );
+            for (const a of pending) {
+              bumpRefPriceRef.current(a.coinId, a.currentPrice);
+              refMap[a.coinId] = a.currentPrice;
+              handleFavAlert(a);
+            }
+            localStorage.setItem('cs_fav_ref_prices', JSON.stringify(refMap));
+          }
+        } catch { /* ignore */ }
+        refresh();
+      });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [refresh, handleFavAlert]);
+
   const handleIntervalChange = useCallback((ms: number) => {
     setRefreshInterval(ms);
     localStorage.setItem(INTERVAL_KEY, String(ms));
   }, []);
 
-  const handlePerPageChange = useCallback((n: 50 | 100) => {
+  const handlePerPageChange = useCallback((n: PerPage) => {
     setPerPage(n);
     setPage(1);
   }, []);
 
   const handleSort = useCallback((key: SortBy) => {
+    if (key === '7d') setTimeFrame('7d');
+    else if (key === 'change') setTimeFrame('24h');
     setSortBy((prev) => {
       if (prev === key) { setSortDesc((d) => !d); return key; }
       setSortDesc(true);
@@ -219,6 +342,25 @@ export default function App() {
     () => coins.filter((c) => isFavorite(c.id)),
     [coins, isFavorite]
   );
+
+  const { bumpRefPrice } = useFavoritePriceAlerts(favoriteCoins, favMoveUpPct, favMoveDownPct, handleFavAlert);
+  bumpRefPriceRef.current = bumpRefPrice;
+
+  // Keep favSyncRef up-to-date on every render so the background handler always has fresh data
+  favSyncRef.current = {
+    coinsJson: JSON.stringify(favoriteCoins.map(c => ({ id: c.id, name: c.name, symbol: c.symbol }))),
+    upPct: favMoveUpPct,
+    downPct: favMoveDownPct,
+    refPricesJson: localStorage.getItem('cs_fav_ref_prices') ?? '{}',
+    currency,
+  };
+
+  // Sync favorite alert config + reference prices to the native WorkManager every price cycle
+  useEffect(() => {
+    const coinsData = favoriteCoins.map(c => ({ id: c.id, name: c.name, symbol: c.symbol }));
+    const refPricesJson = localStorage.getItem('cs_fav_ref_prices') ?? '{}';
+    syncFavAlertsNative(JSON.stringify(coinsData), favMoveUpPct, favMoveDownPct, refPricesJson, currency);
+  }, [favoriteCoins, favMoveUpPct, favMoveDownPct, currency]);
 
   const handleAddAlert = useCallback((coin: Coin) => {
     setSelectedCoin(coin);
@@ -260,6 +402,8 @@ export default function App() {
   const triggeredCount = alerts.filter((a) => a.triggered).length;
 
   return (
+    <>
+    {showSplash && <SplashOverlay onDone={() => setShowSplash(false)} />}
     <div className="flex flex-col h-full bg-dark-900">
       <div
         className="fixed inset-x-0 top-0 bg-dark-900 z-50 pointer-events-none"
@@ -318,7 +462,6 @@ export default function App() {
       </header>
 
       <main ref={mainRef} className="flex-1 overflow-y-auto overscroll-y-none pb-20">
-        {/* Pull-to-refresh indicator — altezza gestita direttamente via DOM */}
         <div ref={ptrRef} className="h-0 flex items-center justify-center overflow-hidden">
           {ptrRefreshing ? (
             <svg className="w-5 h-5 text-accent-blue animate-spin" fill="none" viewBox="0 0 24 24">
@@ -364,7 +507,7 @@ export default function App() {
                 <>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex gap-1">
-                      {([50, 100] as const).map((n) => (
+                      {([50, 100, 200, 400, 600] as const).map((n) => (
                         <button
                           key={n}
                           onClick={() => handlePerPageChange(n)}
@@ -459,9 +602,11 @@ export default function App() {
                       isFavorite={isFavorite(coin.id)}
                       onToggleFavorite={toggleFavorite}
                       onAddAlert={handleAddAlert}
+                      onChartTap={handleChartTap}
                       currency={currency}
                       showVolume={sortBy === 'volume'}
                       timeFrame={timeFrame}
+                      rankDelta={rankDeltas.get(coin.id)}
                     />
                   ))}
                 </div>
@@ -488,7 +633,10 @@ export default function App() {
                       isFavorite={true}
                       onToggleFavorite={toggleFavorite}
                       onAddAlert={handleAddAlert}
+                      onChartTap={handleChartTap}
                       currency={currency}
+                      alertPending={pendingFavAlerts.get(coin.id)}
+                      onAlertTap={() => setSelectedFavAlert(pendingFavAlerts.get(coin.id) ?? null)}
                     />
                   ))}
                 </div>
@@ -518,6 +666,12 @@ export default function App() {
               onCurrencyChange={changeCurrency}
               sliderRange={sliderRange}
               onSliderRangeChange={handleSliderRangeChange}
+              favMoveUpPct={favMoveUpPct}
+              onFavMoveUpPctChange={handleFavMoveUpPctChange}
+              favMoveDownPct={favMoveDownPct}
+              onFavMoveDownPctChange={handleFavMoveDownPctChange}
+              rankAnimTopN={rankAnimTopN}
+              onRankAnimTopNChange={handleRankAnimTopNChange}
             />
           )}
         </div>
@@ -538,6 +692,29 @@ export default function App() {
           onClose={() => setSelectedCoin(null)}
         />
       )}
+
+      {chartCoin && (
+        <CoinChartSheet
+          coin={chartCoin}
+          alerts={alerts}
+          rangeAlerts={rangeAlerts}
+          currency={currency}
+          onClose={() => setChartCoin(null)}
+          onToggleAlert={toggleAlert}
+          onToggleRangeAlert={toggleRangeAlert}
+          onAddAlert={(coin) => { setChartCoin(null); setSelectedCoin(coin); }}
+        />
+      )}
+
+      {selectedFavAlert && (
+        <FavMovePopup
+          alert={selectedFavAlert}
+          currency={currency}
+          onClose={() => setSelectedFavAlert(null)}
+          onDismiss={() => handleDismissFavAlert(selectedFavAlert.coinId)}
+        />
+      )}
     </div>
+    </>
   );
 }
