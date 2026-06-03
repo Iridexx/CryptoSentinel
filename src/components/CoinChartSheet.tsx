@@ -113,8 +113,8 @@ const CoinChartSheet: FC<Props> = ({
             });
           });
           coinRangeAlerts.filter(a => a.active ?? true).forEach(a => {
-            series.createPriceLine({ price: a.maxPrice, color: '#3b82f6', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '↑' });
-            series.createPriceLine({ price: a.minPrice, color: '#3b82f6', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '↓' });
+            series.createPriceLine({ price: a.maxPrice, color: '#3b82f6', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '▲' });
+            series.createPriceLine({ price: a.minPrice, color: '#3b82f6', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '▼' });
           });
         }
       } else {
@@ -139,8 +139,8 @@ const CoinChartSheet: FC<Props> = ({
             });
           });
           coinRangeAlerts.filter(a => a.active ?? true).forEach(a => {
-            series.createPriceLine({ price: a.maxPrice, color: '#3b82f6', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '↑' });
-            series.createPriceLine({ price: a.minPrice, color: '#3b82f6', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '↓' });
+            series.createPriceLine({ price: a.maxPrice, color: '#3b82f6', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '▲' });
+            series.createPriceLine({ price: a.minPrice, color: '#3b82f6', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '▼' });
           });
         }
       }
