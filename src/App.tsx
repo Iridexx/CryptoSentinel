@@ -22,6 +22,7 @@ import NotificationBanner from './components/NotificationBanner';
 import EnergySavingBanner from './components/EnergySavingBanner';
 import SettingsTab from './components/SettingsTab';
 import FavMovePopup from './components/FavMovePopup';
+import CoinChartSheet from './components/CoinChartSheet';
 
 const INTERVAL_KEY = 'cryptosentinel_refresh_interval';
 const SLIDER_RANGE_KEY = 'cryptosentinel_alert_slider_range';
@@ -183,6 +184,11 @@ export default function App() {
 
   const [pendingFavAlerts, setPendingFavAlerts] = useState<Map<string, FavAlertData>>(new Map());
   const [selectedFavAlert, setSelectedFavAlert] = useState<FavAlertData | null>(null);
+  const [chartCoin, setChartCoin] = useState<Coin | null>(null);
+
+  const handleChartTap = useCallback((coin: Coin) => {
+    setChartCoin(coin);
+  }, []);
 
   const handleFavAlert = useCallback((alert: FavAlertData) => {
     setPendingFavAlerts(prev => new Map(prev).set(alert.coinId, alert));
@@ -243,8 +249,8 @@ export default function App() {
 
   const { results: searchResults, searching } = useSearch(search, currency);
   const { favorites, toggle: toggleFavorite, isFavorite, clear: clearFavorites } = useFavorites();
-  const { alerts, addAlert, removeAlert, resetAlert, editAlert, clearAlerts, history, clearHistory } = useAlerts(coins);
-  const { rangeAlerts, addRangeAlert, removeRangeAlert, editRangeAlert } = useRangeAlerts(coins);
+  const { alerts, addAlert, removeAlert, resetAlert, editAlert, toggleAlert, clearAlerts, history, clearHistory } = useAlerts(coins);
+  const { rangeAlerts, addRangeAlert, removeRangeAlert, editRangeAlert, toggleRangeAlert } = useRangeAlerts(coins);
 
   const [refreshFlash, setRefreshFlash] = useState(false);
 
@@ -591,6 +597,7 @@ export default function App() {
                       isFavorite={isFavorite(coin.id)}
                       onToggleFavorite={toggleFavorite}
                       onAddAlert={handleAddAlert}
+                      onChartTap={handleChartTap}
                       currency={currency}
                       showVolume={sortBy === 'volume'}
                       timeFrame={timeFrame}
@@ -621,6 +628,7 @@ export default function App() {
                       isFavorite={true}
                       onToggleFavorite={toggleFavorite}
                       onAddAlert={handleAddAlert}
+                      onChartTap={handleChartTap}
                       currency={currency}
                       alertPending={pendingFavAlerts.get(coin.id)}
                       onAlertTap={() => setSelectedFavAlert(pendingFavAlerts.get(coin.id) ?? null)}
@@ -677,6 +685,19 @@ export default function App() {
           onConfirm={handleConfirmAlert}
           onConfirmRange={handleConfirmRange}
           onClose={() => setSelectedCoin(null)}
+        />
+      )}
+
+      {chartCoin && (
+        <CoinChartSheet
+          coin={chartCoin}
+          alerts={alerts}
+          rangeAlerts={rangeAlerts}
+          currency={currency}
+          onClose={() => setChartCoin(null)}
+          onToggleAlert={toggleAlert}
+          onToggleRangeAlert={toggleRangeAlert}
+          onAddAlert={(coin) => { setChartCoin(null); setSelectedCoin(coin); }}
         />
       )}
 

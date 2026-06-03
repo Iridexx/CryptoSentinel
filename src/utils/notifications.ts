@@ -146,6 +146,16 @@ export async function sendFavoriteMoveNotification(params: {
   }
 }
 
+export function openExternalUrl(url: string): void {
+  if (Capacitor.isNativePlatform()) {
+    AppSettings.openWithChooser({ url, title: 'Apri con' }).catch(() => {
+      window.open(url, '_blank');
+    });
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
 export function openNotificationSettings(): void {
   if (Capacitor.isNativePlatform()) {
     AppSettings.openNotifications().catch(() => {

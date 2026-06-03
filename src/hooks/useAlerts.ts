@@ -152,7 +152,7 @@ export function useAlerts(coins: Coin[]) {
 
     for (const alert of alertsRef.current) {
       const coin = coins.find((c) => c.id === alert.coinId);
-      if (!coin || alert.triggered || lastTriggeredRef.current.has(alert.id)) continue;
+      if (!coin || alert.triggered || !(alert.active ?? true) || lastTriggeredRef.current.has(alert.id)) continue;
 
       const price = coin.current_price;
       const prevPrice = prevPrices.get(coin.id);
@@ -277,6 +277,14 @@ export function useAlerts(coins: Coin[]) {
     if (!firedNow) lastTriggeredRef.current.delete(id);
   }, []);
 
+  const toggleAlert = useCallback((id: string) => {
+    setAlerts((prev) => {
+      const next = prev.map((a) => a.id === id ? { ...a, active: !(a.active ?? true) } : a);
+      saveAlerts(next);
+      return next;
+    });
+  }, []);
+
   const clearAlerts = useCallback(() => {
     setAlerts([]);
     localStorage.removeItem(STORAGE_KEY);
@@ -289,5 +297,5 @@ export function useAlerts(coins: Coin[]) {
     localStorage.removeItem(HISTORY_KEY);
   }, []);
 
-  return { alerts, addAlert, removeAlert, resetAlert, editAlert, clearAlerts, history, clearHistory };
+  return { alerts, addAlert, removeAlert, resetAlert, editAlert, toggleAlert, clearAlerts, history, clearHistory };
 }

@@ -38,6 +38,7 @@ interface Props {
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
   onAddAlert: (coin: Coin) => void;
+  onChartTap: (coin: Coin) => void;
   currency: Currency;
   showVolume?: boolean;
   timeFrame?: TimeFrame;
@@ -46,7 +47,7 @@ interface Props {
   rankDelta?: number;
 }
 
-const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, currency, showVolume, timeFrame = '24h', alertPending, onAlertTap, rankDelta }) => {
+const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, onChartTap, currency, showVolume, timeFrame = '24h', alertPending, onAlertTap, rankDelta }) => {
   const displayChange =
     timeFrame === '1h' ? (coin.price_change_percentage_1h_in_currency ?? coin.price_change_percentage_24h ?? 0) :
     timeFrame === '7d' ? (coin.price_change_percentage_7d_in_currency ?? coin.price_change_percentage_24h ?? 0) :
@@ -184,6 +185,15 @@ const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, c
           aria-label="Imposta allarme"
         >
           🔔
+        </button>
+        <button
+          onClick={() => { hapticLight(); onChartTap(coin); }}
+          className="text-gray-600 hover:text-accent-blue transition-colors active:scale-75 flex items-center justify-center"
+          aria-label="Grafico"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+          </svg>
         </button>
       </div>
     </div>

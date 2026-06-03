@@ -27,6 +27,7 @@ export interface PriceAlert {
   percentChange?: number;
   note?: string;
   triggered: boolean;
+  active?: boolean;
   createdAt: number;
 }
 
@@ -51,6 +52,7 @@ export interface RangeAlert {
   minPrice: number;
   maxPrice: number;
   note?: string;
+  active?: boolean;
   isInsideRange: boolean | null;
   lastNotifiedAt: number | null;
   createdAt: number;

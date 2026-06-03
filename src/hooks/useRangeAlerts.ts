@@ -64,6 +64,14 @@ export function useRangeAlerts(coins: Coin[]) {
     });
   }, []);
 
+  const toggleRangeAlert = useCallback((id: string) => {
+    setRangeAlerts((prev) => {
+      const next = prev.map((a) => a.id === id ? { ...a, active: !(a.active ?? true) } : a);
+      saveRangeAlerts(next);
+      return next;
+    });
+  }, []);
+
   const clearRangeAlerts = useCallback(() => {
     setRangeAlerts([]);
     localStorage.removeItem(STORAGE_KEY);
@@ -106,6 +114,7 @@ export function useRangeAlerts(coins: Coin[]) {
     const toNotify: Array<{ alert: RangeAlert; entered: boolean; price: number }> = [];
 
     for (const alert of rangeAlertsRef.current) {
+      if (!(alert.active ?? true)) continue;
       const coin = coins.find((c) => c.id === alert.coinId);
       if (!coin) continue;
 
@@ -162,5 +171,5 @@ export function useRangeAlerts(coins: Coin[]) {
     });
   }, [coins]);
 
-  return { rangeAlerts, addRangeAlert, removeRangeAlert, editRangeAlert, clearRangeAlerts };
+  return { rangeAlerts, addRangeAlert, removeRangeAlert, editRangeAlert, toggleRangeAlert, clearRangeAlerts };
 }
