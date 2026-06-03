@@ -11,6 +11,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.work.BackoffPolicy;
 import androidx.work.Constraints;
 import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.ExistingWorkPolicy;
@@ -58,11 +59,14 @@ public class PriceCheckWorker extends Worker {
         PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(
             PriceCheckWorker.class, 15, TimeUnit.MINUTES)
             .setConstraints(constraints)
+            // LINEAR backoff: if a retry is needed, wait 10 min then 20 min — avoids hours-long backoff
+            .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.MINUTES)
             .addTag(WORK_TAG)
             .build();
+        // KEEP: don't reset the timer if the job is already running fine
         WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(
             WORK_TAG,
-            ExistingPeriodicWorkPolicy.UPDATE,
+            ExistingPeriodicWorkPolicy.KEEP,
             request
         );
     }
@@ -129,7 +133,9 @@ public class PriceCheckWorker extends Worker {
             String vsParams = favCurrency.equals("usd") ? "usd" : "usd," + favCurrency;
             JSONObject prices = fetchJson(
                 "https://api.coingecko.com/api/v3/simple/price?ids=" + ids + "&vs_currencies=" + vsParams);
-            if (prices == null) return Result.retry();
+            // Don't retry on API failure — periodic job would go into exponential backoff
+            // (up to 5 hours) causing notifications to stop. Just wait for the next period.
+            if (prices == null) return Result.success();
 
             ensureChannel();
 
@@ -295,7 +301,7 @@ public class PriceCheckWorker extends Worker {
             .setVibrate(new long[]{0, 250, 100, 250});
         try {
             NotificationManagerCompat.from(ctx)
-                .notify((int)(System.currentTimeMillis() % 100_000), b.build());
+                .notify(notifId(coinName + direction), b.build());
         } catch (SecurityException ignored) {}
     }
 
@@ -355,7 +361,7 @@ public class PriceCheckWorker extends Worker {
             .setVibrate(new long[]{0, 250, 100, 250});
         try {
             NotificationManagerCompat.from(ctx)
-                .notify((int)(System.currentTimeMillis() % 100_000), b.build());
+                .notify(notifId(coinName + dir + threshold), b.build());
         } catch (SecurityException ignored) {}
     }
 
@@ -386,8 +392,16 @@ public class PriceCheckWorker extends Worker {
             .setVibrate(new long[]{0, 250, 100, 250});
         try {
             NotificationManagerCompat.from(ctx)
-                .notify((int)(System.currentTimeMillis() % 100_000), b.build());
+                .notify(notifId(coinName + minPrice + maxPrice), b.build());
         } catch (SecurityException ignored) {}
+    }
+
+    private int notifId(String seed) {
+        int h = 5381;
+        for (int i = 0; i < seed.length(); i++) {
+            h = 33 * h ^ seed.charAt(i);
+        }
+        return (Math.abs(h) % 1_900_000) + 1;
     }
 
     private String fmt(double v) {
