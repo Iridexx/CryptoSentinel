@@ -27,6 +27,7 @@ export interface PriceAlert {
   percentChange?: number;
   note?: string;
   triggered: boolean;
+  triggeredAt?: number;
   active?: boolean;
   createdAt: number;
 }
@@ -49,11 +50,10 @@ export interface RangeAlert {
   coinName: string;
   coinSymbol: string;
   coinImage: string;
-  minPrice: number;
-  maxPrice: number;
+  min: number;
+  max: number;
   note?: string;
   active?: boolean;
-  isInsideRange: boolean | null;
-  lastNotifiedAt: number | null;
+  lastState?: 'inside' | 'outside' | null;
   createdAt: number;
 }
