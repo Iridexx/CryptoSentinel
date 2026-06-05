@@ -68,6 +68,7 @@ export function useAlerts(coins: Coin[]) {
         (alertData.direction === 'below' && price <= alertData.threshold);
       if (alreadyMet) {
         newAlert.triggered = true;
+        newAlert.triggeredAt = Date.now();
         lastTriggeredRef.current.add(newAlert.id);
         const now = Date.now();
         const entry: AlertHistoryEntry = {
@@ -205,14 +206,12 @@ export function useAlerts(coins: Coin[]) {
       }
 
       // Segna tutti come triggered in React (anche quelli gestiti dal worker)
+      const now = Date.now();
       setAlerts((prev) => {
-        const next = prev.map((a) => toTriggerIds.has(a.id) ? { ...a, triggered: true } : a);
+        const next = prev.map((a) => toTriggerIds.has(a.id) ? { ...a, triggered: true, triggeredAt: now } : a);
         saveAlerts(next);
         return next;
       });
-
-      // Storico per tutti i crossing rilevati dal JS
-      const now = Date.now();
       const newEntries: AlertHistoryEntry[] = toFire.map(({ alert, currentPrice }) => ({
         id: `${now}-${alert.id}`,
         coinId: alert.coinId,
@@ -282,7 +281,7 @@ export function useAlerts(coins: Coin[]) {
     }
 
     setAlerts((prev) => {
-      const next = prev.map((a) => a.id === id ? { ...a, threshold, direction, percentChange, note: note !== undefined ? note : a.note, triggered: firedNow } : a);
+      const next = prev.map((a) => a.id === id ? { ...a, threshold, direction, percentChange, note: note !== undefined ? note : a.note, triggered: firedNow, triggeredAt: firedNow ? Date.now() : a.triggeredAt } : a);
       saveAlerts(next);
       return next;
     });
