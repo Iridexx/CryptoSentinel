@@ -71,7 +71,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_NOTES: |
-            ## CryptoSentinel v1.0.${{ github.run_number }}
+            ## CryptoSentinel v1.2.0
 
             ### Novità
 
@@ -87,13 +87,21 @@ jobs:
             • **Popup aggiornamento** — tasti Ignora, Dopo (snooze 4h) e Scarica
             • **Impostazioni** — link a CoinGecko, multi-valuta USD/EUR/BTC, animazione rank
             • **Pagina web** — landing page su GitHub Pages con download automatico
+
+            ### Aggiornamenti recenti
+
+            • **Schermata di avvio** — fix tocca-per-saltare: il tap ora funziona correttamente su tutti i dispositivi
+            • **Rilevamento aggiornamenti** — il controllo ora avviene ogni 30 minuti anche a app aperta (non solo al riavvio)
+            • **Download aggiornamento** — nuovo flusso in due step: popup con link diretto all'APK per scaricarlo con un tocco
+            • **QR code donazioni** — tasto QR accanto a Copia in "Supporta sviluppatore" per Bitcoin, Lightning e EVM
+            • **Contatore download** — la pagina web ora mostra il totale cumulativo dei download da tutte le release
         run: |
           gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release delete v1.2.0 --yes --cleanup-tag 2>/dev/null || true
           gh release delete v1.1.1 --yes --cleanup-tag 2>/dev/null || true
-          gh release delete "v1.0.${{ github.run_number }}" --yes --cleanup-tag 2>/dev/null || true
           sleep 3
-          gh release create "v1.0.${{ github.run_number }}" \
-            --title "CryptoSentinel v1.0.${{ github.run_number }}" \
+          gh release create v1.2.0 \
+            --title "CryptoSentinel v1.2.0" \
             --notes "$RELEASE_NOTES" \
             --latest \
             CryptoSentinel-debug.apk
