@@ -3,8 +3,6 @@ import { type FC, useState, useEffect, useRef, useCallback } from 'react';
 const SESSION_KEY = 'cs_splash_shown';
 const AUTO_DISMISS_MS = 8000;
 
-// Colore di sfondo che corrisponde al background dello splash HTML:
-// evita lo "spostamento" visivo mentre l'iframe si carica
 const SPLASH_BG = '#0a1220';
 
 interface Props {
@@ -40,8 +38,6 @@ const SplashOverlay: FC<Props> = ({ onDone }) => {
       }}
       onClick={dismiss}
     >
-      {/* L'iframe fa fade-in solo dopo il caricamento, così
-          lo sfondo blu del wrapper funge da base senza spostamenti */}
       <iframe
         src="/splash.html"
         className="w-full h-full border-none block"
@@ -52,6 +48,8 @@ const SplashOverlay: FC<Props> = ({ onDone }) => {
         }}
         onLoad={() => setIframeReady(true)}
       />
+      {/* transparent overlay to capture clicks that would otherwise be swallowed by the iframe */}
+      <div className="absolute inset-0" onClick={dismiss} />
     </div>
   );
 };
