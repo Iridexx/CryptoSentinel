@@ -41,6 +41,7 @@ const CoinChartSheet: FC<Props> = ({
   const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef(0);
+  const [crosshairPrice, setCrosshairPrice] = useState<number | null>(null);
 
   const { lineData, candleData, loading, error } = useCoinChart(coin.id, currency, DAYS[tf], mode);
 
@@ -51,12 +52,10 @@ const CoinChartSheet: FC<Props> = ({
   const coinRangeAlerts = useMemo(() => rangeAlerts.filter(a => a.coinId === coin.id), [rangeAlerts, coin.id]);
   const activeCount = coinAlerts.filter(a => a.active ?? true).length + coinRangeAlerts.filter(a => a.active ?? true).length;
 
-  // Build / rebuild chart when data, mode or showAlerts changes
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Cleanup previous instance
     if (chartRef.current) {
       chartRef.current.remove();
       chartRef.current = null;
@@ -146,6 +145,16 @@ const CoinChartSheet: FC<Props> = ({
       }
 
       chart.timeScale().fitContent();
+
+      chart.subscribeCrosshairMove((param) => {
+        if (!param.point || !param.time || param.seriesData.size === 0) {
+          setCrosshairPrice(null);
+          return;
+        }
+        const entry = param.seriesData.values().next().value as { value?: number; close?: number } | undefined;
+        const price = entry?.value ?? entry?.close ?? null;
+        setCrosshairPrice(price ?? null);
+      });
     };
 
     const raf = requestAnimationFrame(init);
@@ -153,6 +162,7 @@ const CoinChartSheet: FC<Props> = ({
       cancelAnimationFrame(raf);
       chart?.remove();
       chartRef.current = null;
+      setCrosshairPrice(null);
     };
   }, [lineData, candleData, mode, showAlerts, coinAlerts, coinRangeAlerts, loading, error, tf]);
 
@@ -196,10 +206,16 @@ const CoinChartSheet: FC<Props> = ({
               </div>
             </div>
             <div className="text-right">
-              <p className="text-white font-bold text-xl tabular-nums">{sym}{fmt(coin.current_price, currency)}</p>
-              <p className={`text-xs font-semibold mt-0.5 ${isPositive ? 'text-accent-green' : 'text-red-400'}`}>
-                {isPositive ? '▲' : '▼'} {Math.abs(coin.price_change_percentage_24h ?? 0).toFixed(2)}%
+              <p className="text-white font-bold text-xl tabular-nums">
+                {sym}{fmt(crosshairPrice ?? coin.current_price, currency)}
               </p>
+              {crosshairPrice == null ? (
+                <p className={`text-xs font-semibold mt-0.5 ${isPositive ? 'text-accent-green' : 'text-red-400'}`}>
+                  {isPositive ? '▲' : '▼'} {Math.abs(coin.price_change_percentage_24h ?? 0).toFixed(2)}%
+                </p>
+              ) : (
+                <p className="text-xs font-semibold mt-0.5 text-gray-500">storico</p>
+              )}
             </div>
           </div>
 
