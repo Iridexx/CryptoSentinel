@@ -272,7 +272,6 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, s
   const [draftNote, setDraftNote] = useState(alert.note ?? '');
 
   const isAbove = alert.direction === 'above';
-  // Centra lo slider sul prezzo di mercato attuale — la stanghetta blu è sempre a 50%
   const pivotPrice = coin?.current_price ?? alert.threshold;
   const sliderMin = pivotPrice * (1 - sliderRange / 100);
   const sliderMax = pivotPrice * (1 + sliderRange / 100);
@@ -324,9 +323,7 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, s
     setEditField('percent');
   };
 
-  // Con sliderMin/Max centrati sul prezzo corrente, la stanghetta è sempre a 50%
   const currentPricePercent = coin ? 50 : null;
-
   const pct = coin ? ((draftThreshold - coin.current_price) / coin.current_price) * 100 : null;
 
   return (
@@ -365,7 +362,6 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, s
           )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-          {!editing && <span className="text-gray-600 text-xs mr-1">✏️</span>}
           {alert.triggered && (
             <button
               onClick={() => { hapticLight(); onReset(alert.id); }}
@@ -383,11 +379,9 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, s
 
       {editing && (
         <div className="px-3 pb-3 border-t border-dark-600">
-          {/* Riga prezzo + % — entrambi toccabili per inserimento diretto */}
           <div className="flex items-center justify-between pt-2.5 pb-2">
             <div className="flex items-center gap-2 flex-wrap">
 
-              {/* Prezzo soglia */}
               {editField === 'price' ? (
                 <div className={`flex items-center gap-0.5 rounded-lg px-2 py-1 border border-accent-blue bg-dark-700`}>
                   <span className={`text-sm font-bold ${draftDirection === 'above' ? 'text-accent-green' : 'text-accent-red'}`}>
@@ -416,11 +410,9 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, s
                   }`}
                 >
                   {draftDirection === 'above' ? '▲' : '▼'}&nbsp;${formatPrice(draftThreshold)}
-                  <span className="text-gray-500 text-xs">✎</span>
                 </button>
               )}
 
-              {/* Badge percentuale */}
               {coin && pct !== null && (
                 editField === 'percent' ? (
                   <div className="flex items-center rounded-lg px-2 py-1 border border-accent-blue bg-dark-700">
@@ -453,8 +445,7 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, s
                     }`}
                   >
                     {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
-                    <span className="text-gray-500 text-xs">✎</span>
-                  </button>
+                    </button>
                 )
               )}
             </div>
@@ -466,7 +457,6 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, s
             )}
           </div>
 
-          {/* Slider */}
           <SmoothSlider
             value={sliderValue}
             onChange={handleSliderChange}
@@ -479,7 +469,6 @@ const AlertRow: FC<AlertRowProps> = ({ alert, onRemove, onReset, onEdit, coin, s
             <span>${formatPrice(sliderMax)}</span>
           </div>
 
-          {/* Nota */}
           <div className="mb-3">
             <label className="text-xs text-gray-500 mb-1 block">Nota</label>
             <textarea
@@ -525,7 +514,6 @@ const RangeAlertRow: FC<RangeAlertRowProps> = ({ alert, onRemove, onEdit, coin }
   const isInside = alert.isInsideRange === true;
   const isUnknown = alert.isInsideRange === null;
 
-  // Visual range bar: 0–100% from min to max, where current price sits
   const priceBarPct = currentPrice != null
     ? Math.max(2, Math.min(98, ((currentPrice - alert.minPrice) / (alert.maxPrice - alert.minPrice)) * 100))
     : null;
@@ -569,7 +557,6 @@ const RangeAlertRow: FC<RangeAlertRowProps> = ({ alert, onRemove, onEdit, coin }
           <div className="text-xs text-accent-blue mt-0.5">
             ${formatPrice(alert.minPrice)} – ${formatPrice(alert.maxPrice)}
           </div>
-          {/* Range bar */}
           {currentPrice != null && priceBarPct != null && (
             <div className="mt-1.5 relative h-1.5 bg-dark-600 rounded-full overflow-visible">
               <div className="absolute inset-0 bg-accent-blue/20 rounded-full" />
@@ -589,7 +576,6 @@ const RangeAlertRow: FC<RangeAlertRowProps> = ({ alert, onRemove, onEdit, coin }
           )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-          {!editing && <span className="text-gray-600 text-xs mr-1">✏️</span>}
           <button
             onClick={() => { hapticMedium(); onRemove(alert.id); }}
             className="text-xs px-2 py-1 rounded-lg bg-accent-red/10 text-accent-red hover:bg-accent-red/20 transition-colors"
