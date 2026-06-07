@@ -52,9 +52,8 @@ export default function App() {
   const favSyncRef = useRef({ coinsJson: '[]', upPct: 0, downPct: 0, refPricesJson: '{}', currency: 'usd' });
   const bumpRefPriceRef = useRef<(coinId: string, price: number) => void>(() => {});
 
-  const [dismissedBuild, setDismissedBuild] = useState<string | null>(() =>
-    localStorage.getItem('cs_dismissed_build')
-  );
+  // dismiss è session-only: non si carica da localStorage, così il riavvio mostra sempre la freccia
+  const [dismissedBuild, setDismissedBuild] = useState<string | null>(null);
   const [snoozedBuild, setSnoozedBuild] = useState<string | null>(() =>
     localStorage.getItem('cs_snoozed_build')
   );
@@ -77,8 +76,7 @@ export default function App() {
 
   const handleIgnoreUpdate = useCallback(() => {
     const build = availableUpdate?.buildNumber ?? '_';
-    localStorage.setItem('cs_dismissed_build', build);
-    setDismissedBuild(build);
+    setDismissedBuild(build); // session-only, non persiste in localStorage
   }, [availableUpdate]);
 
   const handleSnoozeUpdate = useCallback(() => {
@@ -92,7 +90,7 @@ export default function App() {
 
   const handleUpdateDone = useCallback(() => {
     setAvailableUpdate(null);
-    localStorage.removeItem('cs_dismissed_build');
+    setDlState('idle');
     localStorage.removeItem('cs_snoozed_build');
     localStorage.removeItem('cs_snoozed_until');
     setDismissedBuild(null);
@@ -139,11 +137,13 @@ export default function App() {
     onDownloadComplete(() => setDlState('done')).then((fn) => { unsubDl = fn; });
 
     const updateTimer = setTimeout(runUpdateCheck, 3000);
+    const updateInterval = setInterval(runUpdateCheck, 30 * 60 * 1000);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
       unsubDl?.();
       clearTimeout(updateTimer);
+      clearInterval(updateInterval);
     };
   }, [runUpdateCheck]);
 
@@ -607,6 +607,7 @@ export default function App() {
                       showVolume={sortBy === 'volume'}
                       timeFrame={timeFrame}
                       rankDelta={rankDeltas.get(coin.id)}
+                      hasAlert={alerts.some(a => a.coinId === coin.id) || rangeAlerts.some(a => a.coinId === coin.id)}
                     />
                   ))}
                 </div>
@@ -637,6 +638,7 @@ export default function App() {
                       currency={currency}
                       alertPending={pendingFavAlerts.get(coin.id)}
                       onAlertTap={() => setSelectedFavAlert(pendingFavAlerts.get(coin.id) ?? null)}
+                      hasAlert={alerts.some(a => a.coinId === coin.id) || rangeAlerts.some(a => a.coinId === coin.id)}
                     />
                   ))}
                 </div>

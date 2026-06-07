@@ -45,9 +45,10 @@ interface Props {
   alertPending?: FavAlertData;
   onAlertTap?: () => void;
   rankDelta?: number;
+  hasAlert?: boolean;
 }
 
-const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, onChartTap, currency, showVolume, timeFrame = '24h', alertPending, onAlertTap, rankDelta }) => {
+const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, onChartTap, currency, showVolume, timeFrame = '24h', alertPending, onAlertTap, rankDelta, hasAlert }) => {
   const displayChange =
     timeFrame === '1h' ? (coin.price_change_percentage_1h_in_currency ?? coin.price_change_percentage_24h ?? 0) :
     timeFrame === '7d' ? (coin.price_change_percentage_7d_in_currency ?? coin.price_change_percentage_24h ?? 0) :
@@ -177,17 +178,37 @@ const CoinCard: FC<Props> = ({ coin, isFavorite, onToggleFavorite, onAddAlert, o
       <div className="flex flex-col gap-1 flex-shrink-0 ml-1">
         <button
           onClick={() => { hapticMedium(); onToggleFavorite(coin.id); }}
-          className={`text-lg leading-none transition-transform active:scale-75 ${isFavorite ? 'text-accent-yellow' : 'text-gray-600 hover:text-gray-400'}`}
+          className="w-7 h-7 rounded-lg bg-dark-700 flex items-center justify-center transition-transform active:scale-75"
+          style={{ color: isFavorite ? '#3b82f6' : '#8B95A7' }}
           aria-label={isFavorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
         >
-          ★
+          {isFavorite ? (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          ) : (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          )}
         </button>
         <button
           onClick={() => { hapticLight(); onAddAlert(coin); }}
-          className="text-lg leading-none text-gray-600 hover:text-accent-blue transition-colors active:scale-75"
+          className="w-7 h-7 rounded-lg bg-dark-700 flex items-center justify-center transition-transform active:scale-75"
+          style={{ color: hasAlert ? '#3b82f6' : '#8B95A7' }}
           aria-label="Imposta allarme"
         >
-          🔔
+          {hasAlert ? (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 01-3.46 0"/>
+            </svg>
+          ) : (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 01-3.46 0"/>
+            </svg>
+          )}
         </button>
       </div>
     </div>
